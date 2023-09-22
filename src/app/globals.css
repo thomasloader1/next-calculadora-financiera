@@ -16,3 +16,27 @@
   }
 }
 
+
+body{
+  height: 100vh;
+  max-width: 1920px;
+  min-width: 320px;
+}
+
+@media (min-width: 768px) {
+ body{
+  min-width: 600px;
+ }
+}
+
+@media (min-width: 1024px) {
+  body{
+    min-width: 900px;
+   }
+}
+
+@media (min-width: 1200px) {
+  body{
+    min-width: 1000px;
+   }
+}

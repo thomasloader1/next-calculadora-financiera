@@ -2,34 +2,57 @@ import { useExpenseContext } from '@/context/Expense/ExpenseContext';
 import { Expense } from '@/interfaces/Expense';
 import { Button, Input, Select, SelectItem, Textarea } from '@nextui-org/react'
 import React, { useState } from 'react'
+import Swal from 'sweetalert2/dist/sweetalert2.js'
+
+interface Category {
+    cash: number | undefined;
+    update: (expenses: Expense[]) => void;
+    expenses: Expense[];
+}
 
 const AddExpenseForm = () => {
-    const { needs, wants, savings, updateNeeds, updateWants, updateSavings } = useExpenseContext();
+    const { needs, wants, savings, cash, updateNeeds, updateWants, updateSavings } = useExpenseContext();
     const [expense, setExpense] = useState<string>('');
-    const [groupNames] = useState<string[]>(['Necesidad', 'Imprevistos', 'Ahorro']);
+    const [groupNames] = useState<{name: string}[]>([{name:'Necesidad'}, {name:'Imprevistos'}, {name:'Ahorro'}]);
     const [expenseCategory, setExpenseCategory] = useState<string>('');
     const [expenseDescription, setExpenseDescription] = useState<string>('');
 
     const handleAddExpense = () => {
-        const newExpense: Expense = { id: (Math.random() + Date.now()).toString(), description: `${expenseDescription}`, amount: +Number(expense) };
+        const newExpense: Expense = { 
+            id: (Math.random() + Date.now()).toString(), 
+            description: expenseDescription !== "" ? `${expenseDescription}` : "Un panchito y una coca", 
+            amount: +Number(expense) 
+        };
 
-        switch (expenseCategory) {
-            case 'Necesidad':
-                const newStateNeeds: Expense[] = [...needs, newExpense]
-                updateNeeds(newStateNeeds);
-                break;
-            case 'Ahorro':
-                const newStateSavings: Expense[] = [...savings, newExpense];
-                updateSavings(newStateSavings);
-                break;
-            default:
-                const newStateWants: Expense[] = [...wants, newExpense];
-                updateWants(newStateWants);
-                break;
+        const categories: Record<string,Category> = {
+            'Necesidad': { cash: cash?.needs, update: updateNeeds, expenses: needs },
+            'Ahorro': { cash: cash?.savings, update: updateSavings, expenses: savings },
+            'Imprevistos': { cash: cash?.wants, update: updateWants, expenses: wants }
+        };
+    
+        const category = categories[expenseCategory];
+        if(!category){
+            Swal.fire({
+                title: '¡No tan rapido!',
+                text: 'Seleccione una categoria',
+                icon: 'error',
+                confirmButtonText: 'Entendido'
+              })
+        }
+    
+        if ((Number(category.cash) - Number(expense)) >= 0) {
+            const newState: Expense[] = [...category.expenses, newExpense];
+            category.update(newState);
+        } else {
+            Swal.fire({
+                title: '¡Oops, algo no cuadra!',
+                text: 'El monto ingresado supera el limite de la categoria!',
+                icon: 'error',
+                confirmButtonText: 'Ententido'
+              })
         }
 
         setExpense('');
-        setExpenseCategory('');
         setExpenseDescription('');
     }
 
@@ -41,6 +64,7 @@ const AddExpenseForm = () => {
                     setExpense('')
                 }}
                 size='sm'
+                min={0}
                 type="number"
                 label="Gasto"
                 labelPlacement='outside'
@@ -58,15 +82,14 @@ const AddExpenseForm = () => {
 
             <Select
                 size='sm'
+                items={groupNames}
                 labelPlacement='outside'
                 label="Categoria"
                 placeholder="Seleccione una categoria"
-                description={`${expenseCategory}`}
+                value={''}
                 onChange={(e) => setExpenseCategory(e.target.value)}
             >
-                {groupNames.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
+                {(c) => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>}
             </Select>
 
             <Textarea
