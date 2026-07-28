@@ -124,7 +124,15 @@ export default function ProfilePage() {
   if (loading || !user) {
     return (
       <div className="min-h-screen flex flex-col">
-        <div className="h-14 bg-cds-surface border-b border-cds-border" />
+      <div className="h-14 bg-cds-surface border-b border-cds-border flex items-center px-4">
+        <button
+          onClick={() => router.push('/')}
+          className="flex items-center gap-1.5 text-sm text-cds-muted hover:text-cds-foreground transition-colors"
+        >
+          <i className="pi pi-arrow-left text-xs"></i>
+          Volver al inicio
+        </button>
+      </div>
         <main className="max-w-2xl mx-auto px-4 py-8 space-y-6 w-full">
           <div className="border border-cds-border bg-cds-surface rounded-cds-lg p-6 space-y-4">
             <div className="flex items-center gap-4">
@@ -154,9 +162,16 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <div className="h-14 bg-cds-surface border-b border-cds-border" />
+      <div className="h-14 bg-cds-surface border-b border-cds-border flex items-center px-4">
+        <button
+          onClick={() => router.push('/')}
+          className="flex items-center gap-1.5 text-sm text-cds-muted hover:text-cds-foreground transition-colors"
+        >
+          <i className="pi pi-arrow-left text-xs"></i>
+          Volver al inicio
+        </button>
+      </div>
       <main className="max-w-2xl mx-auto px-4 py-8 space-y-6 w-full">
-        {/* User Info Section */}
         <section className="border border-cds-border bg-cds-surface rounded-cds-lg p-6">
           <div className="flex items-center gap-4">
             {user.photoURL ? (

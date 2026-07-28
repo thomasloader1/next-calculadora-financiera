@@ -4,8 +4,6 @@ import { useExpenseContext } from '@/context/Expense/ExpenseContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { Toggle } from '@/components/ui/Toggle';
-import type { SplitPercentages } from '@/interfaces/Income';
 import { formatAmount } from '@/lib/formatAmount';
 import { getRate, RateSource, DollarRate } from '@/lib/exchangeRate';
 
@@ -14,12 +12,6 @@ const RATE_OPTIONS = [
   { key: 'mep', label: 'MEP (Dólar bolsa)' },
   { key: 'custom', label: 'Personalizado' },
 ];
-
-const SPLIT_LABELS: Record<keyof SplitPercentages, string> = {
-  needs: 'Necesidades',
-  wants: 'Deseos',
-  savings: 'Ahorro',
-};
 
 const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
   const { addIncome } = useExpenseContext();
@@ -30,10 +22,6 @@ const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
   const [customRate, setCustomRate] = useState('');
   const [rate, setRate] = useState<DollarRate | null>(null);
   const [rateError, setRateError] = useState('');
-  const [enableSplitOverride, setEnableSplitOverride] = useState(false);
-  const [splitOverride, setSplitOverride] = useState<Record<keyof SplitPercentages, string>>({
-    needs: '', wants: '', savings: '',
-  });
 
   useEffect(() => {
     if (currency !== 'USD' || rateSource === 'custom') {
@@ -52,47 +40,15 @@ const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
     ? Number(customRate) || 0
     : rate?.venta || 0;
 
-  const handleSplitChange = (key: keyof SplitPercentages, value: string) => {
-    const num = value === '' ? 0 : Number(value);
-    if (value !== '' && (isNaN(num) || num < 0 || num > 100)) return;
-
-    setSplitOverride(prev => {
-      const next = { ...prev, [key]: value };
-      // Auto-calc the third field when the other two are filled
-      const keys: (keyof SplitPercentages)[] = ['needs', 'wants', 'savings'];
-      const filled = keys.filter(k => next[k] !== '');
-      if (filled.length === 2) {
-        const empty = keys.find(k => next[k] === '')!;
-        const total = keys.reduce((sum, k) => sum + (Number(next[k]) || 0), 0);
-        const auto = 100 - total + (Number(next[empty]) || 0); // re-add the empty field since total already includes it as 0
-        if (auto >= 0 && auto <= 100) {
-          next[empty] = String(auto);
-        }
-      }
-      return next;
-    });
-  };
-
-  const splitTotal = Object.values(splitOverride).reduce((sum, v) => sum + (Number(v) || 0), 0);
-  const splitValid = enableSplitOverride ? splitTotal === 100 : true;
-
   const handleAdd = () => {
     const num = Number(amount);
-    if (!num || num <= 0 || !description.trim() || !splitValid) return;
+    if (!num || num <= 0 || !description.trim()) return;
 
     const inc: Parameters<typeof addIncome>[0] = {
       description: description.trim(),
       amount: num,
       currency,
     };
-
-    if (enableSplitOverride && splitTotal === 100) {
-      inc.splitOverride = {
-        needs: Number(splitOverride.needs),
-        wants: Number(splitOverride.wants),
-        savings: Number(splitOverride.savings),
-      };
-    }
 
     if (currency === 'USD' && effectiveRate > 0) {
       inc.originalAmount = num;
@@ -107,8 +63,6 @@ const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
     addIncome(inc);
 
     setAmount('');
-    setEnableSplitOverride(false);
-    setSplitOverride({ needs: '', wants: '', savings: '' });
     onAdded?.();
   };
 
@@ -205,40 +159,10 @@ const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
         </div>
       )}
 
-      {/* Per-income split override */}
-      <div className="pt-2 border-t border-cds-border">
-        <Toggle
-          label="Split personalizado"
-          checked={enableSplitOverride}
-          onChange={setEnableSplitOverride}
-        />
-        {enableSplitOverride && (
-          <div className="mt-3 space-y-2">
-            <div className="grid grid-cols-3 gap-2">
-              {(['needs', 'wants', 'savings'] as const).map(key => (
-                <Input
-                  key={key}
-                  type="number"
-                  label={SPLIT_LABELS[key]}
-                  value={splitOverride[key]}
-                  onChange={v => handleSplitChange(key, v)}
-                  placeholder="%"
-                />
-              ))}
-            </div>
-            {splitTotal !== 100 && (
-              <p className="text-xs text-cds-warning">
-                Los porcentajes deben sumar 100% (actual: {splitTotal}%)
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-
       <Button
         size="sm"
         onClick={handleAdd}
-        isDisabled={!amount || Number(amount) <= 0 || !description.trim() || (currency === 'USD' && effectiveRate <= 0) || !splitValid}
+        isDisabled={!amount || Number(amount) <= 0 || !description.trim() || (currency === 'USD' && effectiveRate <= 0)}
       >
         Agregar ingreso
       </Button>
