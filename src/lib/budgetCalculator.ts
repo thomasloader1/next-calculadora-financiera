@@ -26,9 +26,10 @@ export function calculatePoolAmounts(
   const totals: PoolResult = { needs: 0, wants: 0, savings: 0 };
 
   for (const income of incomes) {
-    totals.needs += income.amount * (globalSplit.needs / 100);
-    totals.wants += income.amount * (globalSplit.wants / 100);
-    totals.savings += income.amount * (globalSplit.savings / 100);
+    const split = income.splitOverride ?? globalSplit;
+    totals.needs += income.amount * (split.needs / 100);
+    totals.wants += income.amount * (split.wants / 100);
+    totals.savings += income.amount * (split.savings / 100);
   }
 
   return {

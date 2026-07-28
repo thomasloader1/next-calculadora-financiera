@@ -74,6 +74,36 @@ describe('calculatePoolAmounts', () => {
     expect(result.wants).toBe(9999.9);
     expect(result.savings).toBe(6666.6);
   });
+
+  it('uses splitOverride when present on single income', () => {
+    const incomes = [makeIncome({ amount: 100000, splitOverride: { needs: 100, wants: 0, savings: 0 } })];
+    const result = calculatePoolAmounts(incomes, DEFAULT_SPLIT);
+    expect(result).toEqual({ needs: 100000, wants: 0, savings: 0 });
+  });
+
+  it('uses global split when splitOverride is absent', () => {
+    const incomes = [makeIncome({ amount: 100000 })];
+    const result = calculatePoolAmounts(incomes, DEFAULT_SPLIT);
+    expect(result).toEqual({ needs: 50000, wants: 30000, savings: 20000 });
+  });
+
+  it('mixes override and global across multiple incomes', () => {
+    const incomes = [
+      makeIncome({ id: 'inc_1', amount: 100000, splitOverride: { needs: 100, wants: 0, savings: 0 } }),
+      makeIncome({ id: 'inc_2', amount: 100000 }), // uses global 50/30/20
+    ];
+    const result = calculatePoolAmounts(incomes, DEFAULT_SPLIT);
+    expect(result).toEqual({ needs: 150000, wants: 30000, savings: 20000 });
+  });
+
+  it('respects splitOverride when all incomes have one', () => {
+    const incomes = [
+      makeIncome({ id: 'inc_1', amount: 50000, splitOverride: { needs: 60, wants: 20, savings: 20 } }),
+      makeIncome({ id: 'inc_2', amount: 50000, splitOverride: { needs: 40, wants: 40, savings: 20 } }),
+    ];
+    const result = calculatePoolAmounts(incomes, DEFAULT_SPLIT);
+    expect(result).toEqual({ needs: 50000, wants: 30000, savings: 20000 });
+  });
 });
 
 describe('checkAndCreateLoans', () => {
