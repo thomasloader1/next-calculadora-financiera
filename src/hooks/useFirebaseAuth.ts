@@ -1,32 +1,28 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getAuth, User } from "firebase/auth";
-import {app} from '@/Services/firebase'
+import { getFirebaseAuth } from '@/Services/firebase';
 
-// Definimos un tipo para el usuario autenticado.
-type AuthUser = User | null;
+type AuthUser = { uid: string; displayName: string | null; email: string | null; photoURL: string | null } | null;
 
-// Creamos un custom hook para verificar la autenticación del usuario.
 const useFirebaseAuth = (): AuthUser => {
-  const auth = getAuth(app);
   const router = useRouter();
-
   const [user, setUser] = useState<AuthUser>(null);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setUser(user);
-      if (user) {
-        router.push("/"); // Redirecciona al dashboard si el usuario ya está autenticado.
-      }else{
-        router.push("/login")
-      }
-    });
+    const auth = getFirebaseAuth();
+    if (!auth) {
+      router.push("/");
+      return;
+    }
 
-    return () => {
-      unsubscribe();
-    };
-  }, []);
+    import("firebase/auth").then(({ onAuthStateChanged }) => {
+      const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+        setUser(fbUser ? { uid: fbUser.uid, displayName: fbUser.displayName, email: fbUser.email, photoURL: fbUser.photoURL } : null);
+        router.push(fbUser ? "/" : "/login");
+      });
+      return () => unsubscribe();
+    });
+  }, [router]);
 
   return user;
 };

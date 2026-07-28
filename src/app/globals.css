@@ -2,41 +2,141 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Coinbase Design System Tokens */
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --cds-primary: #0052ff;
+  --cds-primary-hover: #578bfa;
+  --cds-canvas: #ffffff;
+  --cds-dark: #1f1f1f;
+  --cds-foreground: #000;
+  --cds-muted: #5b616e;
+  --cds-surface: #eef0f3;
+  --cds-surface-dark: #282828;
+  --cds-on-primary: #ffffff;
+  --cds-positive: #05b169;
+  --cds-negative: #cf202f;
+  --cds-border: rgba(91,97,110,0.2);
+
+  --cds-radius-sm: 8px;
+  --cds-radius-md: 16px;
+  --cds-radius-lg: 24px;
+  --cds-radius-pill: 100px;
+  --cds-radius-full: 9999px;
+
+  --cds-font-body: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --cds-font-mono: ui-monospace, SF Mono, JetBrains Mono, Menlo, Monaco, Consolas, monospace;
+
+  --foreground-rgb: 10, 11, 13;
+  --background-rgb: 255, 255, 255;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+    --background-rgb: 10, 11, 13;
   }
 }
 
-
-body{
-  height: 100vh;
-  max-width: 1920px;
+/* Base */
+body {
+  min-height: 100vh;
   min-width: 320px;
+  max-width: 1920px;
+  background-color: var(--cds-canvas);
+  color: var(--cds-foreground);
+  font-family: var(--cds-font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+/* Numbers — tabular alignment for financial data */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* CDS Button styles */
+.cds-btn-primary {
+  background-color: var(--cds-primary);
+  color: var(--cds-on-primary);
+  border-radius: var(--cds-radius-pill);
+  padding: 12px 20px;
+  height: 44px;
+  font-weight: 600;
+  font-size: 16px;
+  transition: background-color 150ms ease;
+  border: none;
+  cursor: pointer;
+}
+
+.cds-btn-primary:hover {
+  background-color: var(--cds-primary-hover);
+}
+
+.cds-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* CDS Card styles */
+.cds-card {
+  background-color: var(--cds-canvas);
+  border-radius: var(--cds-radius-lg);
+  border: 1px solid var(--cds-border);
+  overflow: hidden;
+}
+
+/* CDS Input styles */
+.cds-input {
+  border-radius: var(--cds-radius-sm);
+  border: 1px solid var(--cds-border);
+  padding: 12px 16px;
+  font-size: 16px;
+  transition: border-color 150ms ease;
+}
+
+.cds-input:focus {
+  outline: none;
+  border-color: var(--cds-primary);
+  box-shadow: 0 0 0 2px rgba(0, 82, 255, 0.15);
+}
+
+/* Dark section */
+.cds-dark-section {
+  background-color: var(--cds-dark);
+  color: var(--cds-canvas);
+}
+
+/* Dark Mode */
+.dark {
+  --cds-canvas: #0a0c10;
+  --cds-foreground: #e8eaed;
+  --cds-muted: #717680;
+  --cds-surface: #16191f;
+  --cds-surface-dark: #0c0e13;
+  --cds-border: rgba(255,255,255,0.10);
+}
+
+/* Responsive */
 @media (min-width: 768px) {
- body{
-  min-width: 600px;
- }
+  body {
+    min-width: 600px;
+  }
 }
 
 @media (min-width: 1024px) {
-  body{
+  body {
     min-width: 900px;
-   }
+  }
 }
 
 @media (min-width: 1200px) {
-  body{
+  body {
     min-width: 1000px;
-   }
+  }
 }
