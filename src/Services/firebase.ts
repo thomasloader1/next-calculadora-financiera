@@ -5,6 +5,7 @@ import { Income } from '@/interfaces/Income';
 import { Transfer } from '@/interfaces/Transfer';
 
 const DEFAULT_SPLIT = { needs: 50, wants: 30, savings: 20 } as const;
+const COLLECTION = 'financeCalculator';
 
 function migrateCash(cash: Record<string, unknown> | undefined): CashState {
   if (!cash) {
@@ -54,38 +55,99 @@ function migrateV1ToV2(doc: Record<string, unknown>): MonthBudget {
   };
 }
 
-// --- Firebase (optional) ---
-let firebaseApp: any = null;
-let firebaseDb: any = null;
-let firebaseEnabled = false;
-
-function getFirebase() {
-  if (firebaseEnabled) return { app: firebaseApp, db: firebaseDb };
+// --- Firebase config ---
+const FIREBASE_CONFIG = (() => {
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
   if (!apiKey) return null;
+  return {
+    apiKey,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  };
+})();
+
+// --- Lazy Firebase init with ESM ---
+let firebaseApp: any = null;
+let firebaseDb: any = null;
+let firebaseAuth: any = null;
+let firebasePromise: Promise<boolean> | null = null;
+
+async function initFirebase(): Promise<boolean> {
+  if (firebaseApp) return true;
+  if (!FIREBASE_CONFIG) return false;
+  if (firebasePromise) return firebasePromise;
+  
+  firebasePromise = (async () => {
+    try {
+      const { initializeApp, getApps } = await import('firebase/app');
+      const { getAuth } = await import('firebase/auth');
+      
+      firebaseApp = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
+      firebaseAuth = getAuth(firebaseApp);
+      return true;
+    } catch (e) {
+      console.warn('Firebase init error:', e);
+      return false;
+    }
+  })();
+  
+  return firebasePromise;
+}
+
+async function initFirestore(): Promise<boolean> {
+  if (firebaseDb) return true;
+  const ok = await initFirebase();
+  if (!ok) return false;
+  
   try {
-    // Dynamic imports to avoid crashing when Firebase isn't configured
-    const { initializeApp } = require('firebase/app');
-    const { getFirestore } = require('firebase/firestore');
-    const config = {
-      apiKey,
-      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-    };
-    firebaseApp = initializeApp(config);
+    const { getFirestore } = await import('firebase/firestore');
     firebaseDb = getFirestore(firebaseApp);
-    firebaseEnabled = true;
-    return { app: firebaseApp, db: firebaseDb };
+    return true;
   } catch (e) {
-    console.warn('Firebase not available, using localStorage fallback');
-    return null;
+    console.warn('Firestore init error:', e);
+    return false;
   }
 }
 
-// --- localStorage fallback ---
+// --- Local uid ---
+function getLocalUid(): string {
+  const KEY = 'calc:anon-uid';
+  let uid = localStorage.getItem(KEY);
+  if (!uid) {
+    uid = crypto.randomUUID();
+    localStorage.setItem(KEY, uid);
+  }
+  return uid;
+}
+
+// --- Exported API ---
+
+/** Returns the Firebase Auth instance or null if not available */
+export async function getFirebaseAuthAsync(): Promise<any | null> {
+  const ok = await initFirebase();
+  return ok ? firebaseAuth : null;
+}
+
+/** Returns current user ID: Google uid if logged in, otherwise local anonymous uid */
+export function getCurrentUserId(): string {
+  return (globalThis as any).__firebaseUserUid || getLocalUid();
+}
+
+/** Store the current Firebase user uid so getCurrentUserId() returns it */
+export function setFirebaseUserUid(uid: string | null): void {
+  (globalThis as any).__firebaseUserUid = uid;
+}
+
+/** Returns true if Firebase (Cloud) is available and initialized */
+export async function isFirebaseAvailable(): Promise<boolean> {
+  return initFirebase();
+}
+
+// --- Data operations (Firestore or localStorage) ---
+
 function lsKey(uid: string, month: string) {
   return `calc:${uid}:${month}`;
 }
@@ -94,13 +156,11 @@ function lsMonthsKey(uid: string) {
   return `calc:${uid}:months`;
 }
 
-// --- Exported API (Firebase or localStorage) ---
-
 export const saveMonthBudget = async (uid: string, month: string, data: MonthBudget) => {
-  const fb = getFirebase();
-  if (fb) {
-    const { doc, setDoc, serverTimestamp } = require('firebase/firestore');
-    await setDoc(doc(fb.db, 'users', uid, 'months', month), {
+  const fbOk = await initFirestore();
+  if (fbOk) {
+    const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+    await setDoc(doc(firebaseDb, COLLECTION, uid, 'months', month), {
       ...data,
       schemaVersion: 2,
       updatedAt: serverTimestamp()
@@ -117,10 +177,10 @@ export const saveMonthBudget = async (uid: string, month: string, data: MonthBud
 };
 
 export const loadMonthBudget = async (uid: string, month: string): Promise<MonthBudget | null> => {
-  const fb = getFirebase();
-  if (fb) {
-    const { doc, getDoc } = require('firebase/firestore');
-    const snap = await getDoc(doc(fb.db, 'users', uid, 'months', month));
+  const fbOk = await initFirestore();
+  if (fbOk) {
+    const { doc, getDoc } = await import('firebase/firestore');
+    const snap = await getDoc(doc(firebaseDb, COLLECTION, uid, 'months', month));
     if (!snap.exists()) return null;
     const raw = snap.data();
     const version = raw.schemaVersion;
@@ -140,10 +200,10 @@ export const loadMonthBudget = async (uid: string, month: string): Promise<Month
 };
 
 export const getUserMonths = async (uid: string): Promise<string[]> => {
-  const fb = getFirebase();
-  if (fb) {
-    const { collection, getDocs } = require('firebase/firestore');
-    const snap = await getDocs(collection(fb.db, 'users', uid, 'months'));
+  const fbOk = await initFirestore();
+  if (fbOk) {
+    const { collection, getDocs } = await import('firebase/firestore');
+    const snap = await getDocs(collection(firebaseDb, COLLECTION, uid, 'months'));
     return snap.docs.map((d: any) => d.id).sort().reverse();
   }
   // localStorage fallback
@@ -152,20 +212,23 @@ export const getUserMonths = async (uid: string): Promise<string[]> => {
 };
 
 export const saveUserProfile = async (uid: string, data: Partial<UserProfile>) => {
-  const fb = getFirebase();
-  if (fb) {
-    const { doc, setDoc } = require('firebase/firestore');
-    await setDoc(doc(fb.db, 'users', uid), { ...data }, { merge: true });
+  const fbOk = await initFirestore();
+  if (fbOk) {
+    const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+    await setDoc(doc(firebaseDb, COLLECTION, uid), {
+      ...data,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
     return;
   }
   localStorage.setItem(`calc:${uid}:profile`, JSON.stringify(data));
 };
 
 export const loadUserProfile = async (uid: string): Promise<UserProfile | null> => {
-  const fb = getFirebase();
-  if (fb) {
-    const { doc, getDoc } = require('firebase/firestore');
-    const snap = await getDoc(doc(fb.db, 'users', uid));
+  const fbOk = await initFirestore();
+  if (fbOk) {
+    const { doc, getDoc } = await import('firebase/firestore');
+    const snap = await getDoc(doc(firebaseDb, COLLECTION, uid));
     if (!snap.exists()) return null;
     return snap.data() as UserProfile;
   }
@@ -178,20 +241,49 @@ export const loadUserProfile = async (uid: string): Promise<UserProfile | null> 
   }
 };
 
+export const ensureUserDocument = async (
+  uid: string,
+  profile: { email: string | null; displayName: string | null; photoURL: string | null }
+) => {
+  const fbOk = await initFirestore();
+  if (fbOk) {
+    const { doc, getDoc, setDoc, serverTimestamp } = await import('firebase/firestore');
+    const userRef = doc(firebaseDb, COLLECTION, uid);
+    const snap = await getDoc(userRef);
+    if (!snap.exists()) {
+      await setDoc(userRef, {
+        email: profile.email || '',
+        displayName: profile.displayName || '',
+        photoURL: profile.photoURL || '',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      await setDoc(userRef, {
+        email: profile.email || '',
+        displayName: profile.displayName || '',
+        photoURL: profile.photoURL || '',
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    }
+    return;
+  }
+  const existing = localStorage.getItem(`calc:${uid}:profile`);
+  if (!existing) {
+    localStorage.setItem(`calc:${uid}:profile`, JSON.stringify({
+      email: profile.email,
+      displayName: profile.displayName,
+      photoURL: profile.photoURL,
+      createdAt: new Date().toISOString(),
+    }));
+  }
+};
+
 export const computeBalance = (cash: CashState | null, needs: MonthBudget['needs'], wants: MonthBudget['wants'], savings: MonthBudget['savings']): number => {
   const totalIncome = cash?.totalIncome ?? 0;
   const totalExpenses = [...needs, ...wants, ...savings].reduce((sum, e) => sum + e.amount, 0);
   return totalIncome - totalExpenses;
 };
 
-// Export for AuthContext — returns null if Firebase isn't available
-export const getFirebaseAuth = () => {
-  const fb = getFirebase();
-  if (!fb) return null;
-  try {
-    const { getAuth } = require('firebase/auth');
-    return getAuth(fb.app);
-  } catch {
-    return null;
-  }
-};
+/** For backward compatibility — returns null, use getFirebaseAuthAsync() instead */
+export const getFirebaseAuth = () => null;

@@ -2,12 +2,14 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId} {
+    // User root document + subcollections (months, etc.)
+    match /financeCalculator/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
 
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Subcollections under the user (e.g. /financeCalculator/{uid}/months/{month})
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
   }
 }

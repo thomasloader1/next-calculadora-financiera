@@ -82,7 +82,7 @@ const Navbar: React.FC = () => {
         </div>
 
         {/* Center — Month Selector */}
-        {user && (
+        {user && !user.isAnonymous && (
           <div className="absolute left-1/2 -translate-x-1/2">
             <MonthSelector isLoading={isLoading} />
           </div>
@@ -96,10 +96,10 @@ const Navbar: React.FC = () => {
             size="sm"
             isIconOnly
             onClick={() => fileInputRef.current?.click()}
-            className="h-8 w-8 text-cds-muted dark:text-white hover:text-cds-foreground dark:hover:bg-cds-surface-dark"
+            className="h-8 w-8 text-cds-muted hover:text-cds-foreground hover:bg-cds-surface-dark"
             aria-label="Importar Excel"
-            startContent={<i className="pi pi-upload text-sm"></i>}
-          > Importar
+          >
+            <i className="pi pi-file-import text-sm"></i>
           </Button>
           <input
             ref={fileInputRef}
@@ -112,10 +112,9 @@ const Navbar: React.FC = () => {
           {/* Theme toggle */}
           <ThemeToggle />
 
-          {/* Divider */}
           <div className="w-px h-5 bg-cds-border mx-1"></div>
 
-          {user ? (
+          {user && !user.isAnonymous ? (
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setShowProfile(!showProfile)}
@@ -184,7 +183,10 @@ const Navbar: React.FC = () => {
                 </div>
               )}
             </div>
-          ) : (
+          ) : null}
+
+          {/* Show Google login when anonymous or not logged in */}
+          {(!user || user.isAnonymous) && (
             <Button
               size="sm"
               onClick={loginWithGoogle}
