@@ -198,7 +198,10 @@ export default function ProfilePage() {
 
         {/* Birth Date Form Section */}
         <section className="border border-cds-border bg-cds-surface rounded-cds-lg p-6 space-y-3">
-          <h2 className="text-sm font-semibold text-cds-foreground">Fecha de nacimiento</h2>
+          <div className="flex items-center gap-2">
+            <i className="pi pi-calendar text-cds-muted text-sm"></i>
+            <h2 className="text-sm font-semibold text-cds-foreground">Fecha de nacimiento</h2>
+          </div>
           <div className="flex items-center gap-3">
             <input
               type="date"
@@ -212,8 +215,9 @@ export default function ProfilePage() {
             <button
               onClick={handleSaveDate}
               disabled={savingDate}
-              className="px-4 py-2 bg-cds-primary text-white text-sm font-semibold rounded-cds-pill hover:bg-cds-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-cds-primary text-white text-sm font-semibold rounded-cds-pill hover:bg-cds-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
+              <i className={`pi ${savingDate ? 'pi-spin pi-spinner' : 'pi-check'} text-xs`}></i>
               {savingDate ? 'Guardando…' : 'Guardar'}
             </button>
           </div>
@@ -222,6 +226,7 @@ export default function ProfilePage() {
           )}
           {profileBirthDate && !dateError && (
             <p className="text-xs text-cds-muted">
+              <i className="pi pi-check-circle text-cds-positive mr-1 text-[10px]"></i>
               Guardado: {profileBirthDate}
             </p>
           )}
@@ -229,7 +234,10 @@ export default function ProfilePage() {
 
         {/* Month History Section */}
         <section className="border border-cds-border bg-cds-surface rounded-cds-lg p-6 space-y-3">
-          <h2 className="text-sm font-semibold text-cds-foreground">Historial de meses</h2>
+          <div className="flex items-center gap-2">
+            <i className="pi pi-clock text-cds-muted text-sm"></i>
+            <h2 className="text-sm font-semibold text-cds-foreground">Historial de meses</h2>
+          </div>
 
           {monthsLoading ? (
             <div className="space-y-2">
@@ -261,11 +269,13 @@ export default function ProfilePage() {
                         {monthName} {year}
                       </span>
                       <div className="flex items-center gap-3 mt-0.5">
-                        <span className="text-xs text-cds-positive">
-                          +{formatCurrency(totalIncome)}
+                        <span className="text-xs text-cds-positive flex items-center gap-1">
+                          <i className="pi pi-arrow-up text-[9px]"></i>
+                          {formatCurrency(totalIncome)}
                         </span>
-                        <span className="text-xs text-cds-negative">
-                          -{formatCurrency(totalExpenses)}
+                        <span className="text-xs text-cds-negative flex items-center gap-1">
+                          <i className="pi pi-arrow-down text-[9px]"></i>
+                          {formatCurrency(totalExpenses)}
                         </span>
                       </div>
                     </div>

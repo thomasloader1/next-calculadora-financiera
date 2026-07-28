@@ -47,7 +47,25 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
   // Fetch saved months on mount and when user changes
   useEffect(() => {
     if (user) {
-      getUserMonths(user.uid).then(setSavedMonths).catch(() => {});
+      getUserMonths(user.uid).then(months => {
+        setSavedMonths(months);
+        // Auto-load current month if data exists
+        const current = getCurrentMonth();
+        if (months.includes(current)) {
+          loadMonthBudget(user.uid, current).then(data => {
+            if (data) {
+              setCash(data.cash);
+              setNeeds(data.needs);
+              setWants(data.wants);
+              setSavings(data.savings);
+              setCurrentMonth(current);
+              setIncomes(data.incomes || []);
+              setTransfers(data.transfers || []);
+              setGlobalSplitState(data.globalSplit || DEFAULT_SPLIT);
+            }
+          }).catch(() => {});
+        }
+      }).catch(() => {});
     } else {
       setSavedMonths([]);
     }
