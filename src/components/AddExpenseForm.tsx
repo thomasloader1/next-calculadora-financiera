@@ -1,121 +1,164 @@
 import { useExpenseContext } from '@/context/Expense/ExpenseContext';
 import { Expense } from '@/interfaces/Expense';
-import { Button, Input, Select, SelectItem, Textarea } from '@nextui-org/react'
-import React, { useState } from 'react'
-import Swal from 'sweetalert2/dist/sweetalert2.js'
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
+import { Toggle } from '@/components/ui/Toggle';
+import { getOfficialRate, DollarRate } from '@/lib/exchangeRate';
+import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 
-interface Category {
-    cash: number | undefined;
-    update: (expenses: Expense[]) => void;
-    expenses: Expense[];
+const CATEGORY_MAP: Record<string, 'needs' | 'wants' | 'savings'> = {
+  'Necesidad': 'needs',
+  'Imprevistos': 'wants',
+  'Ahorro': 'savings',
+};
+
+const REVERSE_CATEGORY_MAP: Record<string, string> = {
+  needs: 'Necesidad',
+  wants: 'Imprevistos',
+  savings: 'Ahorro',
+};
+
+interface AddExpenseFormProps {
+  defaultCategory?: string;
+  onAdded?: () => void;
 }
 
-const AddExpenseForm = () => {
-    const { needs, wants, savings, cash, updateNeeds, updateWants, updateSavings } = useExpenseContext();
-    const [expense, setExpense] = useState<string>('');
-    const [groupNames] = useState<{name: string}[]>([{name:'Necesidad'}, {name:'Imprevistos'}, {name:'Ahorro'}]);
-    const [expenseCategory, setExpenseCategory] = useState<string>('');
-    const [expenseDescription, setExpenseDescription] = useState<string>('');
+const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ defaultCategory, onAdded }) => {
+  const { addExpenseToCategory } = useExpenseContext();
+  const [expense, setExpense] = useState<string>('');
+  const [groupNames] = useState<{ name: string }[]>([{ name: 'Necesidad' }, { name: 'Imprevistos' }, { name: 'Ahorro' }]);
+  const [expenseCategory, setExpenseCategory] = useState<string>(defaultCategory ? REVERSE_CATEGORY_MAP[defaultCategory] || '' : '');
+  const [expenseDescription, setExpenseDescription] = useState<string>('');
+  const [isUsd, setIsUsd] = useState<boolean>(false);
+  const [rate, setRate] = useState<DollarRate | null>(null);
+  const [rateError, setRateError] = useState<string>('');
 
-    const handleAddExpense = () => {
-        const newExpense: Expense = { 
-            id: (Math.random() + Date.now()).toString(), 
-            description: expenseDescription !== "" ? `${expenseDescription}` : "Un panchito y una coca", 
-            amount: +Number(expense) 
-        };
+  useEffect(() => {
+    if (!isUsd) {
+      setRate(null);
+      setRateError('');
+      return;
+    }
+    let cancelled = false;
+    getOfficialRate()
+      .then(r => { if (!cancelled) { setRate(r); setRateError(''); } })
+      .catch(() => { if (!cancelled) setRateError('No se pudo obtener el tipo de cambio'); });
+    return () => { cancelled = true; };
+  }, [isUsd]);
 
-        const categories: Record<string,Category> = {
-            'Necesidad': { cash: cash?.needs, update: updateNeeds, expenses: needs },
-            'Ahorro': { cash: cash?.savings, update: updateSavings, expenses: savings },
-            'Imprevistos': { cash: cash?.wants, update: updateWants, expenses: wants }
-        };
-    
-        const category = categories[expenseCategory];
-        if(!category){
-            Swal.fire({
-                title: '¡No tan rapido!',
-                text: 'Seleccione una categoria',
-                icon: 'error',
-                confirmButtonText: 'Entendido'
-              })
-        }
-    
-        if ((Number(category.cash) - Number(expense)) >= 0) {
-            const newState: Expense[] = [...category.expenses, newExpense];
-            category.update(newState);
-        } else {
-            Swal.fire({
-                title: '¡Oops, algo no cuadra!',
-                text: 'El monto ingresado supera el limite de la categoria!',
-                icon: 'error',
-                confirmButtonText: 'Ententido'
-              })
-        }
-
-        setExpense('');
-        setExpenseDescription('');
+  const handleAddExpense = () => {
+    const categoryKey = CATEGORY_MAP[expenseCategory];
+    if (!categoryKey) {
+      toast.error('Seleccione una categoria');
+      return;
     }
 
-    return (
-        <div className="grid grid-cols-1 gap-4 mt-3 bg-slate-200 px-3 py-2 rounded-lg animate-fade-down">
-            <Input
-                isClearable
-                onClear={() => {
-                    setExpense('')
-                }}
-                size='sm'
-                min={0}
-                type="number"
-                label="Gasto"
-                labelPlacement='outside'
-                description={expense !== '' && `$ ${expense}`}
-                value={expense}
-                onValueChange={setExpense}
-                placeholder='0.00'
-                className='w-full'
-                startContent={
-                    <div className="pointer-events-none flex items-center">
-                        <span className="text-default-400 text-small">$</span>
-                    </div>
-                }
-            />
+    const numericAmount = +Number(expense);
+    const newExpense: Expense = {
+      id: (Math.random() + Date.now()).toString(),
+      description: expenseDescription !== "" ? `${expenseDescription}` : "Sin descripción",
+      amount: numericAmount,
+    };
 
-            <Select
-                size='sm'
-                items={groupNames}
-                labelPlacement='outside'
-                label="Categoria"
-                placeholder="Seleccione una categoria"
-                value={''}
-                onChange={(e) => setExpenseCategory(e.target.value)}
-            >
-                {(c) => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>}
-            </Select>
+    if (isUsd && rate) {
+      newExpense.currency = 'USD';
+      newExpense.originalAmount = numericAmount;
+      newExpense.exchangeRate = rate.venta;
+      newExpense.amount = Math.round(numericAmount * rate.venta * 100) / 100;
+    }
 
-            <Textarea
-                className='w-full'
-                onClear={() => {
-                    setExpenseDescription('')
-                }}
-                size='sm'
-                type="text"
-                label="Descripcion del gasto"
-                placeholder='Un panchito y una coca.'
-                labelPlacement='outside'
-                value={expenseDescription}
-                onValueChange={setExpenseDescription}
-            />
+    addExpenseToCategory(categoryKey, newExpense);
 
-            <Button
-                size='sm'
-                className='w-full bg-black text-white hover:bg-warning-600 disabled:hover:bg-slate-400 disabled:bg-opacity-disabled disabled:cursor-not-allowed'
-                isDisabled={expense === ''}
-                onClick={handleAddExpense}
-            >
-                Agregar Gasto
-            </Button>
+    setExpense('');
+    setExpenseCategory(defaultCategory ? REVERSE_CATEGORY_MAP[defaultCategory] || '' : '');
+    setExpenseDescription('');
+    onAdded?.();
+  };
+
+  const handleToggleUsd = (checked: boolean) => {
+    if (checked && !rate && !rateError) {
+      // Will trigger useEffect to fetch rate
+    }
+    setIsUsd(checked);
+  };
+
+  const rateAge = rate?.fechaActualizacion
+    ? new Date(rate.fechaActualizacion).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })
+    : null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <span className={`text-sm font-medium ${!isUsd ? 'text-cds-foreground' : 'text-cds-muted'}`}>ARS</span>
+        <Toggle
+          checked={isUsd}
+          onChange={handleToggleUsd}
+          label=""
+        />
+        <span className={`text-sm font-medium ${isUsd ? 'text-cds-foreground' : 'text-cds-muted'}`}>USD</span>
+      </div>
+
+      {isUsd && (
+        <div className="text-xs rounded-cds-sm bg-cds-surface border border-cds-border px-3 py-2">
+          {rateError ? (
+            <span className="text-red-600">{rateError}</span>
+          ) : rate ? (
+            <div className="flex flex-col gap-0.5">
+              <span>1 USD = <strong>${rate.venta.toLocaleString('es-AR')}</strong> ARS</span>
+              {rateAge && <span className="text-cds-muted">Actualizado: {rateAge}</span>}
+            </div>
+          ) : (
+            <span className="text-cds-muted">Cargando tipo de cambio...</span>
+          )}
         </div>
-    )
+      )}
+
+      <Input
+        onClear={() => {
+          setExpense('');
+        }}
+        type="number"
+        label={isUsd ? 'Gasto (USD)' : 'Gasto'}
+        description={expense !== '' && (isUsd && rate ? `≈ ${formatAmountInner(+Number(expense) * rate.venta)}` : `$ ${expense}`)}
+        value={expense}
+        onChange={setExpense}
+        placeholder='0.00'
+        className='w-full'
+        prefix={<span className="text-cds-muted text-sm">{isUsd ? 'U$' : '$'}</span>}
+      />
+
+      <Select
+        label="Categoria"
+        placeholder="Seleccione una categoria"
+        value={expenseCategory}
+        onChange={setExpenseCategory}
+        options={groupNames.map((g) => ({ key: g.name, label: g.name }))}
+      />
+
+      <Textarea
+        className='w-full'
+        label="Descripcion del gasto"
+        placeholder='Un panchito y una coca.'
+        value={expenseDescription}
+        onChange={setExpenseDescription}
+      />
+
+      <Button
+        size='sm'
+        isDisabled={expense === '' || expenseCategory === '' || (isUsd && !rate)}
+        onClick={handleAddExpense}
+      >
+        Agregar Gasto
+      </Button>
+    </div>
+  );
+};
+
+function formatAmountInner(amount: number): string {
+  return amount.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
 }
 
-export default AddExpenseForm
+export default AddExpenseForm;
