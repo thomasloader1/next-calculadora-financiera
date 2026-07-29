@@ -45,6 +45,7 @@ export interface ExpenseContextType {
     globalSplit: SplitPercentages;
     isSaving: boolean;
     isLoading: boolean;
+    isInitialLoading: boolean;
     savedMonths: string[];
     updateNeeds: (newNeeds: Expense[]) => void;
     updateWants: (newWants: Expense[]) => void;
@@ -64,4 +65,5 @@ export interface ExpenseContextType {
     addTransfer: (from: CategoryKey, to: CategoryKey, amount: number, reason?: string, remaining?: Partial<CashState>) => void;
     removeTransfer: (id: string) => void;
     removeTransferAndExpense: (transferId: string) => void;
+    updateTransferAmount: (transferId: string, newAmount: number) => void;
 }

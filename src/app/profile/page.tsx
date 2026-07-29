@@ -6,6 +6,8 @@ import { loadUserProfile, saveUserProfile, getUserMonths, loadMonthBudget, compu
 import { nameToColor, getInitial } from '@/utils/avatar';
 import { MonthBudget } from '@/interfaces/Expense';
 import { toast } from 'sonner';
+import { MaskedInput } from '@/components/ui/MaskedInput';
+import { parseDateDMY, formatDateISOtoDMY } from '@/lib/formatAmount';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -53,7 +55,7 @@ export default function ProfilePage() {
     const profile = await loadUserProfile(user.uid);
     if (profile?.birthDate) {
       setProfileBirthDate(profile.birthDate);
-      setBirthDate(profile.birthDate);
+      setBirthDate(formatDateISOtoDMY(profile.birthDate));
     }
 
     const monthIds = await getUserMonths(user.uid);
@@ -93,13 +95,28 @@ export default function ProfilePage() {
     if (!user) return;
     setDateError('');
 
-    if (!birthDate) {
-      setDateError('Ingresa una fecha válida');
+    if (!birthDate || birthDate.length < 10) {
+      setDateError('Ingresa una fecha válida (DD/MM/AAAA)');
       return;
     }
 
-    const selected = new Date(birthDate);
-    if (isNaN(selected.getTime())) {
+    const parts = birthDate.split('/');
+    if (parts.length !== 3) {
+      setDateError('Formato inválido. Usá DD/MM/AAAA');
+      return;
+    }
+    const [dayStr, monthStr, yearStr] = parts;
+    const day = parseInt(dayStr, 10);
+    const month = parseInt(monthStr, 10) - 1;
+    const year = parseInt(yearStr, 10);
+
+    if (isNaN(day) || isNaN(month) || isNaN(year)) {
+      setDateError('Fecha inválida');
+      return;
+    }
+
+    const selected = new Date(year, month, day);
+    if (selected.getDate() !== day || selected.getMonth() !== month) {
       setDateError('Fecha inválida');
       return;
     }
@@ -111,8 +128,9 @@ export default function ProfilePage() {
 
     setSavingDate(true);
     try {
-      await saveUserProfile(user.uid, { birthDate });
-      setProfileBirthDate(birthDate);
+      const isoDate = parseDateDMY(birthDate);
+      await saveUserProfile(user.uid, { birthDate: isoDate });
+      setProfileBirthDate(isoDate);
       toast.success('Fecha de nacimiento guardada');
     } catch {
       toast.error('Error al guardar');
@@ -203,14 +221,16 @@ export default function ProfilePage() {
             <h2 className="text-sm font-semibold text-cds-foreground">Fecha de nacimiento</h2>
           </div>
           <div className="flex items-center gap-3">
-            <input
-              type="date"
+            <MaskedInput
+              mask="99/99/9999"
+              slotChar="/"
               value={birthDate}
-              onChange={(e) => {
-                setBirthDate(e.target.value);
+              onChange={(v) => {
+                setBirthDate(v);
                 if (dateError) setDateError('');
               }}
-              className="flex-1 cds-input text-sm"
+              placeholder="DD/MM/AAAA"
+              className="flex-1"
             />
             <button
               onClick={handleSaveDate}

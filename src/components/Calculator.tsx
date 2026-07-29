@@ -26,9 +26,19 @@ const Calculator: React.FC = () => {
   const {
     needs, wants, savings, cash,
     incomes, transfers, globalSplit,
-    recalculateBudgets, isLoading,
+    recalculateBudgets, isLoading, isInitialLoading,
   } = useExpenseContext();
-  const { user } = useAuthContext();
+  const { user, loading: authLoading } = useAuthContext();
+
+  // Full-screen loader while initial data is being fetched
+  if (!authLoading && isInitialLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32 gap-4">
+        <i className="pi pi-spin pi-spinner text-3xl text-cds-muted"></i>
+        <p className="text-sm text-cds-muted">Cargando tu sesión...</p>
+      </div>
+    );
+  }
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [expenseModalCategory, setExpenseModalCategory] = useState<string>('');
@@ -42,8 +52,8 @@ const Calculator: React.FC = () => {
 
   const hasIncomes = incomes.length > 0;
   const totalIncome = incomes.reduce((sum, inc) => sum + inc.amount, 0);
-  const effectivePercent = cash
-    ? calculateEffectivePercentages(cash, totalIncome)
+  const effectivePercent = cash?.pool
+    ? calculateEffectivePercentages(cash.pool, totalIncome)
     : globalSplit;
 
   const handleAddExpense = (category: string) => {
@@ -93,18 +103,6 @@ const Calculator: React.FC = () => {
         <IncomeFormModal onAdded={() => setShowIncomeModal(false)} />
       </Modal>
 
-      {/* Split + Transfers link */}
-      {cash && !isLoading && (
-        <section className="space-y-4 mb-6">
-          <SplitEditor />
-          <button
-            onClick={handleOpenTransfers}
-            className="text-xs text-cds-muted hover:text-cds-foreground transition-colors"
-          >
-            Transferencias →
-          </button>
-        </section>
-      )}
 
       {/* Skeleton while loading month data */}
       {cash && isLoading && (
