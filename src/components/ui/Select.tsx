@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dropdown } from 'primereact/dropdown';
 
 interface SelectOption {
@@ -25,6 +25,9 @@ export const Select: React.FC<SelectProps> = ({
   placeholder = 'Seleccione...',
   className = '',
 }) => {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   // Transform { key, label } → { label, value } for PrimeReact Dropdown
   const prOptions = options.map((o) => ({ label: o.label, value: o.key }));
 
@@ -39,6 +42,7 @@ export const Select: React.FC<SelectProps> = ({
         onChange={(e) => onChange(e.value)}
         placeholder={placeholder}
         className="w-full"
+        appendTo={mounted ? document.body : undefined}
       />
     </div>
   );

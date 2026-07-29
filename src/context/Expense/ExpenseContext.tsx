@@ -2,7 +2,7 @@ import { CashState } from '@/interfaces/Cash';
 import { Expense, ExpenseContextType, ExpenseCategory } from '@/interfaces/Expense';
 import { Income, SplitPercentages } from '@/interfaces/Income';
 import { Transfer, CategoryKey } from '@/interfaces/Transfer';
-import { calculatePoolAmounts, createManualTransfer, checkAndCreateLoans } from '@/lib/budgetCalculator';
+import { createManualTransfer, recalculateCashFromScratch } from '@/lib/budgetCalculator';
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { useAuthContext } from '@/context/Auth/AuthContext';
 import { saveMonthBudget, loadMonthBudget, getUserMonths } from '@/Services/firebase';
@@ -41,16 +41,66 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
   const [globalSplit, setGlobalSplitState] = useState<SplitPercentages>(DEFAULT_SPLIT);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
   const [savedMonths, setSavedMonths] = useState<string[]>([]);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Ref to always access latest needs/wants/savings/transfers without stale closures
+  const latestStateRef = useRef({
+    needs: [] as Expense[],
+    wants: [] as Expense[],
+    savings: [] as Expense[],
+    transfers: [] as Transfer[],
+  });
+
+  // Keep ref in sync with state for use in useCallback functions
+  useEffect(() => {
+    latestStateRef.current = { needs, wants, savings, transfers };
+  }, [needs, wants, savings, transfers]);
 
   // Fetch saved months on mount and when user changes
   useEffect(() => {
-    if (user) {
-      getUserMonths(user.uid).then(setSavedMonths).catch(() => {});
-    } else {
+    if (!user) {
       setSavedMonths([]);
+      setIsInitialLoading(false);
+      return;
     }
+
+    setIsInitialLoading(true);
+
+    getUserMonths(user.uid)
+      .then(months => {
+        setSavedMonths(months);
+        const current = getCurrentMonth();
+        if (!months.includes(current)) return;
+        return loadMonthBudget(user.uid, current).then(data => {
+          if (!data) return;
+          setCash(data.cash);
+          setNeeds(data.needs);
+          setWants(data.wants);
+          setSavings(data.savings);
+          setCurrentMonth(current);
+          setIncomes(data.incomes || []);
+          setTransfers(data.transfers || []);
+          setGlobalSplitState(data.globalSplit || DEFAULT_SPLIT);
+          // v2+ data: recalculate cash from scratch using loaded data
+          if (!data.schemaVersion || data.schemaVersion >= 2) {
+            const expenses = { needs: data.needs, wants: data.wants, savings: data.savings };
+            const { cash: newCash, autoLoans } = recalculateCashFromScratch(
+              data.incomes || [],
+              data.transfers || [],
+              expenses,
+              data.globalSplit || DEFAULT_SPLIT
+            );
+            setCash(newCash);
+            setTransfers(prev => {
+              const manual = prev.filter(t => !t.isAutomatic);
+              return [...manual, ...autoLoans];
+            });
+          }
+        });
+      })
+      .catch(() => {})
+      .finally(() => setIsInitialLoading(false));
   }, [user]);
 
   // Auto-save: debounced 300ms after any mutation to needs/wants/savings/incomes/transfers/cash
@@ -122,87 +172,47 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
     }
   }, []);
 
-  // --- Add expense with auto-loan ---
+  // --- Add expense with auto-loan (synchronous, no setTimeout) ---
   const addExpenseToCategory = useCallback((category: ExpenseCategory, expense: Expense) => {
-    const updaterMap: Record<ExpenseCategory, React.Dispatch<React.SetStateAction<Expense[]>>> = {
-      needs: setNeeds,
-      wants: setWants,
-      savings: setSavings,
+    const { needs, wants, savings, transfers } = latestStateRef.current;
+
+    // Compute new expenses (including the new expense)
+    const currentExpenses = category === 'needs' ? needs : category === 'wants' ? wants : savings;
+    const newExpenses = [...currentExpenses, expense];
+
+    const allExpenses = {
+      needs: category === 'needs' ? newExpenses : needs,
+      wants: category === 'wants' ? newExpenses : wants,
+      savings: category === 'savings' ? newExpenses : savings,
     };
 
-    updaterMap[category](prev => {
-      const newExpenses = [...prev, expense];
+    // Recalculate cash from scratch — synchronous, no setTimeout(0) race
+    const { cash: newCash, autoLoans } = recalculateCashFromScratch(
+      incomes,
+      transfers,
+      allExpenses,
+      globalSplit
+    );
 
-      // Auto-loan check after adding expense
-      setTimeout(() => {
-        setNeeds(needsState => {
-          setWants(wantsState => {
-            setSavings(savingsState => {
-              setCash(cashState => {
-                if (!cashState) return cashState;
+    // Update state: add expense to category
+    if (category === 'needs') setNeeds(newExpenses);
+    else if (category === 'wants') setWants(newExpenses);
+    else setSavings(newExpenses);
 
-                const allExpenses = { needs: needsState, wants: wantsState, savings: savingsState };
-                const remaining: Record<CategoryKey, number> = {
-                  needs: cashState.needs - needsState.reduce((s, e) => s + e.amount, 0),
-                  wants: cashState.wants - wantsState.reduce((s, e) => s + e.amount, 0),
-                  savings: cashState.savings - savingsState.reduce((s, e) => s + e.amount, 0),
-                };
+    // Update cash (post-expense available amounts)
+    setCash(newCash);
 
-                const newLoans = checkAndCreateLoans(cashState, allExpenses, []);
-
-                if (newLoans.length === 0) return cashState;
-
-                // Add transfer expenses to their destination categories
-                for (const loan of newLoans) {
-                  const transferExpense: Expense = {
-                    id: `te_${loan.id}`,
-                    description: `Préstamo de ${loan.from === 'needs' ? 'Necesidad' : loan.from === 'wants' ? 'Imprevistos' : 'Ahorro'} → ${loan.to === 'needs' ? 'Necesidad' : loan.to === 'wants' ? 'Imprevistos' : 'Ahorro'}`,
-                    amount: loan.amount,
-                    isTransfer: true,
-                    transferId: loan.id,
-                  };
-
-                  const destUpdaterMap: Record<CategoryKey, React.Dispatch<React.SetStateAction<Expense[]>>> = {
-                    needs: setNeeds,
-                    wants: setWants,
-                    savings: setSavings,
-                  };
-                  destUpdaterMap[loan.to](prev => [...prev, transferExpense]);
-                }
-
-                // Apply all loans to cash
-                const newCash = { ...cashState };
-                for (const loan of newLoans) {
-                  newCash[loan.from] = Math.round((newCash[loan.from] - loan.amount) * 100) / 100;
-                  newCash[loan.to] = Math.round((newCash[loan.to] + loan.amount) * 100) / 100;
-                }
-
-                // Add new loans to transfers state
-                setTransfers(prev => [...prev, ...newLoans]);
-
-                // Show warning if partial coverage
-                const hasPartial = newLoans.some(loan => {
-                  const totalSurplus = Object.values(remaining).filter(v => v > 0).reduce((s, v) => s + v, 0);
-                  const totalDeficit = Object.values(remaining).filter(v => v < 0).reduce((s, v) => s + Math.abs(v), 0);
-                  return totalSurplus < totalDeficit;
-                });
-                if (hasPartial) {
-                  toast('No hay suficiente en otras categorías para cubrir el déficit completo.', { icon: '⚠️' });
-                }
-
-                return newCash;
-              });
-              return savingsState;
-            });
-            return wantsState;
-          });
-          return needsState;
-        });
-      }, 0);
-
-      return newExpenses;
+    // Update auto-loans in transfers (replace existing auto-loans)
+    setTransfers(prev => {
+      const manualTransfers = prev.filter(t => !t.isAutomatic);
+      return [...manualTransfers, ...autoLoans];
     });
-  }, []);
+
+    // Show warning if any category is still negative after auto-borrowing
+    if (newCash.needs < 0 || newCash.wants < 0 || newCash.savings < 0) {
+      toast('No hay suficiente en otras categorías para cubrir el déficit completo.', { icon: '⚠️' });
+    }
+  }, [incomes, globalSplit]);
 
   // --- Income CRUD ---
   const addIncome = useCallback((income: Omit<Income, 'id'>) => {
@@ -216,39 +226,57 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
   const updateIncome = useCallback((id: string, updates: Partial<Income>) => {
     setIncomes(prev => {
       const updated = prev.map(inc => inc.id === id ? { ...inc, ...updates } : inc);
-      // Recalculate pools with updated incomes (preserves transfer effects)
-      setGlobalSplitState(currentSplit => {
-        setCash(cashPrev => {
-          if (!cashPrev) return cashPrev;
-          const pool = calculatePoolAmounts(updated, currentSplit);
-          const totalIncome = updated.reduce((sum, inc) => sum + inc.amount, 0);
-          const transferDiff = {
-            needs: cashPrev.needs - (cashPrev.split ? cashPrev.split.needs / 100 * (cashPrev.totalIncome || 0) : pool.needs),
-            wants: cashPrev.wants - (cashPrev.split ? cashPrev.split.wants / 100 * (cashPrev.totalIncome || 0) : pool.wants),
-            savings: cashPrev.savings - (cashPrev.split ? cashPrev.split.savings / 100 * (cashPrev.totalIncome || 0) : pool.savings),
-          };
-          return {
-            needs: Math.round((pool.needs + transferDiff.needs) * 100) / 100,
-            wants: Math.round((pool.wants + transferDiff.wants) * 100) / 100,
-            savings: Math.round((pool.savings + transferDiff.savings) * 100) / 100,
-            totalIncome,
-            split: currentSplit,
-          };
+      const { needs, wants, savings, transfers } = latestStateRef.current;
+
+      setCash(cashPrev => {
+        if (!cashPrev) return cashPrev;
+        const { cash: newCash, autoLoans } = recalculateCashFromScratch(
+          updated,
+          transfers,
+          { needs, wants, savings },
+          globalSplit
+        );
+        // Update auto-loans in transfers (replace existing auto-loans)
+        setTransfers(prevTransfers => {
+          const manualTransfers = prevTransfers.filter(t => !t.isAutomatic);
+          return [...manualTransfers, ...autoLoans];
         });
-        return currentSplit;
+        return newCash;
       });
+
       return updated;
     });
-  }, []);
+  }, [globalSplit]);
 
   const removeIncome = useCallback((id: string) => {
-    setIncomes(prev => prev.filter(inc => inc.id !== id));
-  }, []);
+    setIncomes(prev => {
+      const updated = prev.filter(inc => inc.id !== id);
+      const { needs, wants, savings, transfers } = latestStateRef.current;
 
-  // --- Split ---
-  const setGlobalSplit = useCallback((split: SplitPercentages) => {
-    setGlobalSplitState(split);
-  }, []);
+      setCash(cashPrev => {
+        if (updated.length === 0) {
+          // No incomes left → reset everything
+          return null;
+        }
+        if (!cashPrev) return cashPrev;
+
+        const { cash: newCash, autoLoans } = recalculateCashFromScratch(
+          updated,
+          transfers,
+          { needs, wants, savings },
+          globalSplit
+        );
+        // Update auto-loans in transfers (replace existing auto-loans)
+        setTransfers(prevTransfers => {
+          const manualTransfers = prevTransfers.filter(t => !t.isAutomatic);
+          return [...manualTransfers, ...autoLoans];
+        });
+        return newCash;
+      });
+
+      return updated;
+    });
+  }, [globalSplit]);
 
   // --- Transfers ---
   const addTransfer = useCallback((from: CategoryKey, to: CategoryKey, amount: number, reason?: string, remaining?: Partial<CashState>) => {
@@ -314,38 +342,44 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
     });
   }, []);
 
-  // --- Recalculate budgets from incomes (preserves transfer effects) ---
+  const updateTransferAmount = useCallback((transferId: string, newAmount: number) => {
+    setTransfers(prev => {
+      const transfer = prev.find(t => t.id === transferId);
+      if (!transfer) return prev;
+
+      const diff = newAmount - transfer.amount;
+      if (diff === 0) return prev;
+
+      // Adjust cash: the difference flows the same direction as the original
+      setCash(c => {
+        if (!c) return c;
+        return {
+          ...c,
+          [transfer.from]: c[transfer.from] - diff,
+          [transfer.to]: c[transfer.to] + diff,
+        };
+      });
+
+      return prev.map(t =>
+        t.id === transferId ? { ...t, amount: newAmount } : t
+      );
+    });
+  }, []);
+
+  // --- Recalculate budgets from scratch (no transferDiff drift) ---
   const recalculateBudgets = useCallback(() => {
     setIncomes(currentIncomes => {
       setGlobalSplitState(currentSplit => {
         setCash(prev => {
-          const pool = calculatePoolAmounts(currentIncomes, currentSplit);
-          const totalIncome = currentIncomes.reduce((sum, inc) => sum + inc.amount, 0);
-
-          if (!prev) {
-            // First time: create cash from scratch
-            return {
-              needs: pool.needs,
-              wants: pool.wants,
-              savings: pool.savings,
-              totalIncome,
-              split: currentSplit,
-            };
-          }
-
-          // Preserve transfer effects
-          const prevBase = {
-            needs: prev.split ? prev.split.needs / 100 * (prev.totalIncome || 0) : pool.needs,
-            wants: prev.split ? prev.split.wants / 100 * (prev.totalIncome || 0) : pool.wants,
-            savings: prev.split ? prev.split.savings / 100 * (prev.totalIncome || 0) : pool.savings,
-          };
-          return {
-            needs: Math.round((pool.needs + (prev.needs - prevBase.needs)) * 100) / 100,
-            wants: Math.round((pool.wants + (prev.wants - prevBase.wants)) * 100) / 100,
-            savings: Math.round((pool.savings + (prev.savings - prevBase.savings)) * 100) / 100,
-            totalIncome,
-            split: currentSplit,
-          };
+          if (!prev) return prev;
+          const { needs, wants, savings, transfers } = latestStateRef.current;
+          const { cash: newCash } = recalculateCashFromScratch(
+            currentIncomes,
+            transfers,
+            { needs, wants, savings },
+            currentSplit
+          );
+          return newCash;
         });
         return currentSplit;
       });
@@ -358,20 +392,19 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
     setIncomes(currentIncomes => {
       setCash(prev => {
         if (!prev) return prev;
-        const pool = calculatePoolAmounts(currentIncomes, split);
-        const totalIncome = currentIncomes.reduce((sum, inc) => sum + inc.amount, 0);
-        const transferDiff = {
-          needs: prev.needs - (prev.split ? prev.split.needs / 100 * (prev.totalIncome || 0) : pool.needs),
-          wants: prev.wants - (prev.split ? prev.split.wants / 100 * (prev.totalIncome || 0) : pool.wants),
-          savings: prev.savings - (prev.split ? prev.split.savings / 100 * (prev.totalIncome || 0) : pool.savings),
-        };
-        return {
-          needs: Math.round((pool.needs + transferDiff.needs) * 100) / 100,
-          wants: Math.round((pool.wants + transferDiff.wants) * 100) / 100,
-          savings: Math.round((pool.savings + transferDiff.savings) * 100) / 100,
-          totalIncome,
-          split,
-        };
+        const { needs, wants, savings, transfers } = latestStateRef.current;
+        const { cash: newCash, autoLoans } = recalculateCashFromScratch(
+          currentIncomes,
+          transfers,
+          { needs, wants, savings },
+          split
+        );
+        // Update auto-loans in transfers (replace existing auto-loans)
+        setTransfers(prevTransfers => {
+          const manualTransfers = prevTransfers.filter(t => !t.isAutomatic);
+          return [...manualTransfers, ...autoLoans];
+        });
+        return newCash;
       });
       return currentIncomes;
     });
@@ -432,6 +465,21 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
         setIncomes(data.incomes || []);
         setTransfers(data.transfers || []);
         setGlobalSplitState(data.globalSplit || DEFAULT_SPLIT);
+        // v2+ data: recalculate cash from scratch; v1 data uses cash as-is
+        if (!data.schemaVersion || data.schemaVersion >= 2) {
+          const expenses = { needs: data.needs, wants: data.wants, savings: data.savings };
+          const { cash: newCash, autoLoans } = recalculateCashFromScratch(
+            data.incomes || [],
+            data.transfers || [],
+            expenses,
+            data.globalSplit || DEFAULT_SPLIT
+          );
+          setCash(newCash);
+          setTransfers(prev => {
+            const manual = prev.filter(t => !t.isAutomatic);
+            return [...manual, ...autoLoans];
+          });
+        }
       } else {
         resetAll();
         setCurrentMonth(month);
@@ -467,6 +515,7 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
         globalSplit,
         isSaving,
         isLoading,
+        isInitialLoading,
         savedMonths,
         updateNeeds,
         updateWants,
@@ -486,6 +535,7 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
         addTransfer,
         removeTransfer,
         removeTransferAndExpense,
+        updateTransferAmount,
       }}
     >
       {children}

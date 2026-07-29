@@ -1,9 +1,7 @@
 import { Income, SplitPercentages } from '@/interfaces/Income';
-import { CashState } from '@/interfaces/Cash';
+import { CashState, PoolResult } from '@/interfaces/Cash';
 import { Transfer, CategoryKey } from '@/interfaces/Transfer';
 import { Expense } from '@/interfaces/Expense';
-
-type PoolResult = { needs: number; wants: number; savings: number };
 
 let idCounter = 0;
 function generateId(): string {
@@ -26,9 +24,10 @@ export function calculatePoolAmounts(
   const totals: PoolResult = { needs: 0, wants: 0, savings: 0 };
 
   for (const income of incomes) {
-    totals.needs += income.amount * (globalSplit.needs / 100);
-    totals.wants += income.amount * (globalSplit.wants / 100);
-    totals.savings += income.amount * (globalSplit.savings / 100);
+    const split = income.splitOverride ?? globalSplit;
+    totals.needs += income.amount * (split.needs / 100);
+    totals.wants += income.amount * (split.wants / 100);
+    totals.savings += income.amount * (split.savings / 100);
   }
 
   return {
@@ -146,5 +145,109 @@ export function createManualTransfer(
     reason,
     isAutomatic: false,
     createdAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Single-hop auto-borrow: if a category is in deficit, borrow from the
+ * highest-surplus category. Only ONE source category is used (no distribution).
+ * Mutates `cash` in place and returns the Transfer created, or null if no
+ * surplus is available.
+ */
+export function autoBorrow(
+  cash: Record<CategoryKey, number>,
+  deficitCat: CategoryKey,
+  categoryOrder: CategoryKey[]
+): Transfer | null {
+  const deficit = Math.abs(cash[deficitCat]);
+  const surplusCats = categoryOrder
+    .filter(c => c !== deficitCat && cash[c] > 0)
+    .sort((a, b) => cash[b] - cash[a]);
+
+  if (surplusCats.length === 0) return null;
+
+  const source = surplusCats[0]; // single-hop: highest surplus only
+  const borrowAmount = Math.min(deficit, cash[source]);
+
+  cash[source] = Math.round((cash[source] - borrowAmount) * 100) / 100;
+  cash[deficitCat] = Math.round((cash[deficitCat] + borrowAmount) * 100) / 100;
+
+  return {
+    id: generateId(),
+    from: source,
+    to: deficitCat,
+    amount: Math.round(borrowAmount * 100) / 100,
+    isAutomatic: true,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Pure, idempotent from-scratch cash recalculation.
+ *
+ * Algorithm:
+ *  1. pool = calculatePoolAmounts(incomes, globalSplit)  — capital inicial
+ *  2. cash = { ...pool }
+ *  3. Apply manual transfers in order (filter out isAutomatic)
+ *  4. For each category in ['needs', 'wants', 'savings']:
+ *       subtract non-transfer expenses; if negative → autoBorrow single-hop
+ *  5. Return { cash: post-expense CashState, autoLoans: Transfer[] }
+ *
+ * Cash semantics: `cash` represents post-expense available amounts.
+ * `pool` is stored separately for effectivePercent calculation.
+ */
+export function recalculateCashFromScratch(
+  incomes: Income[],
+  transfers: Transfer[],
+  expenses: { needs: Expense[]; wants: Expense[]; savings: Expense[] },
+  globalSplit: SplitPercentages
+): { cash: CashState; autoLoans: Transfer[] } {
+  const categoryOrder: CategoryKey[] = ['needs', 'wants', 'savings'];
+
+  // Step 1: Compute pool from incomes + globalSplit (capital inicial)
+  const pool: PoolResult = calculatePoolAmounts(incomes, globalSplit);
+  const cash: Record<CategoryKey, number> = {
+    needs: pool.needs,
+    wants: pool.wants,
+    savings: pool.savings,
+  };
+
+  // Step 2: Apply manual transfers in order (filter out automatic)
+  const manualTransfers = transfers.filter(t => !t.isAutomatic);
+  for (const transfer of manualTransfers) {
+    cash[transfer.from] = Math.round((cash[transfer.from] - transfer.amount) * 100) / 100;
+    cash[transfer.to] = Math.round((cash[transfer.to] + transfer.amount) * 100) / 100;
+  }
+
+  // Step 3: Evaluate expenses per category in order: needs → wants → savings
+  const autoLoans: Transfer[] = [];
+  const totalIncome = incomes.reduce((sum, inc) => sum + inc.amount, 0);
+
+  for (const cat of categoryOrder) {
+    const expenseTotal = expenses[cat]
+      .filter(e => !e.isTransfer)
+      .reduce((sum, e) => sum + e.amount, 0);
+    cash[cat] = Math.round((cash[cat] - expenseTotal) * 100) / 100;
+
+    // Step 3a: If negative → auto-borrow single-hop from highest surplus
+    if (cash[cat] < 0) {
+      const loan = autoBorrow(cash, cat, categoryOrder);
+      if (loan) {
+        autoLoans.push(loan);
+      }
+    }
+  }
+
+  // Step 4: Return cash (post-expense) and autoLoans (derived output)
+  return {
+    cash: {
+      needs: cash.needs,
+      wants: cash.wants,
+      savings: cash.savings,
+      totalIncome,
+      split: globalSplit,
+      pool,
+    },
+    autoLoans,
   };
 }

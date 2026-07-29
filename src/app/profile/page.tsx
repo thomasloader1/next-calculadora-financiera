@@ -6,6 +6,8 @@ import { loadUserProfile, saveUserProfile, getUserMonths, loadMonthBudget, compu
 import { nameToColor, getInitial } from '@/utils/avatar';
 import { MonthBudget } from '@/interfaces/Expense';
 import { toast } from 'sonner';
+import { MaskedInput } from '@/components/ui/MaskedInput';
+import { parseDateDMY, formatDateISOtoDMY } from '@/lib/formatAmount';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -53,7 +55,7 @@ export default function ProfilePage() {
     const profile = await loadUserProfile(user.uid);
     if (profile?.birthDate) {
       setProfileBirthDate(profile.birthDate);
-      setBirthDate(profile.birthDate);
+      setBirthDate(formatDateISOtoDMY(profile.birthDate));
     }
 
     const monthIds = await getUserMonths(user.uid);
@@ -93,13 +95,28 @@ export default function ProfilePage() {
     if (!user) return;
     setDateError('');
 
-    if (!birthDate) {
-      setDateError('Ingresa una fecha válida');
+    if (!birthDate || birthDate.length < 10) {
+      setDateError('Ingresa una fecha válida (DD/MM/AAAA)');
       return;
     }
 
-    const selected = new Date(birthDate);
-    if (isNaN(selected.getTime())) {
+    const parts = birthDate.split('/');
+    if (parts.length !== 3) {
+      setDateError('Formato inválido. Usá DD/MM/AAAA');
+      return;
+    }
+    const [dayStr, monthStr, yearStr] = parts;
+    const day = parseInt(dayStr, 10);
+    const month = parseInt(monthStr, 10) - 1;
+    const year = parseInt(yearStr, 10);
+
+    if (isNaN(day) || isNaN(month) || isNaN(year)) {
+      setDateError('Fecha inválida');
+      return;
+    }
+
+    const selected = new Date(year, month, day);
+    if (selected.getDate() !== day || selected.getMonth() !== month) {
       setDateError('Fecha inválida');
       return;
     }
@@ -111,8 +128,9 @@ export default function ProfilePage() {
 
     setSavingDate(true);
     try {
-      await saveUserProfile(user.uid, { birthDate });
-      setProfileBirthDate(birthDate);
+      const isoDate = parseDateDMY(birthDate);
+      await saveUserProfile(user.uid, { birthDate: isoDate });
+      setProfileBirthDate(isoDate);
       toast.success('Fecha de nacimiento guardada');
     } catch {
       toast.error('Error al guardar');
@@ -124,7 +142,15 @@ export default function ProfilePage() {
   if (loading || !user) {
     return (
       <div className="min-h-screen flex flex-col">
-        <div className="h-14 bg-cds-surface border-b border-cds-border" />
+      <div className="h-14 bg-cds-surface border-b border-cds-border flex items-center px-4">
+        <button
+          onClick={() => router.push('/')}
+          className="flex items-center gap-1.5 text-sm text-cds-muted hover:text-cds-foreground transition-colors"
+        >
+          <i className="pi pi-arrow-left text-xs"></i>
+          Volver al inicio
+        </button>
+      </div>
         <main className="max-w-2xl mx-auto px-4 py-8 space-y-6 w-full">
           <div className="border border-cds-border bg-cds-surface rounded-cds-lg p-6 space-y-4">
             <div className="flex items-center gap-4">
@@ -154,9 +180,16 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <div className="h-14 bg-cds-surface border-b border-cds-border" />
+      <div className="h-14 bg-cds-surface border-b border-cds-border flex items-center px-4">
+        <button
+          onClick={() => router.push('/')}
+          className="flex items-center gap-1.5 text-sm text-cds-muted hover:text-cds-foreground transition-colors"
+        >
+          <i className="pi pi-arrow-left text-xs"></i>
+          Volver al inicio
+        </button>
+      </div>
       <main className="max-w-2xl mx-auto px-4 py-8 space-y-6 w-full">
-        {/* User Info Section */}
         <section className="border border-cds-border bg-cds-surface rounded-cds-lg p-6">
           <div className="flex items-center gap-4">
             {user.photoURL ? (
@@ -183,22 +216,28 @@ export default function ProfilePage() {
 
         {/* Birth Date Form Section */}
         <section className="border border-cds-border bg-cds-surface rounded-cds-lg p-6 space-y-3">
-          <h2 className="text-sm font-semibold text-cds-foreground">Fecha de nacimiento</h2>
+          <div className="flex items-center gap-2">
+            <i className="pi pi-calendar text-cds-muted text-sm"></i>
+            <h2 className="text-sm font-semibold text-cds-foreground">Fecha de nacimiento</h2>
+          </div>
           <div className="flex items-center gap-3">
-            <input
-              type="date"
+            <MaskedInput
+              mask="99/99/9999"
+              slotChar="/"
               value={birthDate}
-              onChange={(e) => {
-                setBirthDate(e.target.value);
+              onChange={(v) => {
+                setBirthDate(v);
                 if (dateError) setDateError('');
               }}
-              className="flex-1 cds-input text-sm"
+              placeholder="DD/MM/AAAA"
+              className="flex-1"
             />
             <button
               onClick={handleSaveDate}
               disabled={savingDate}
-              className="px-4 py-2 bg-cds-primary text-white text-sm font-semibold rounded-cds-pill hover:bg-cds-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-cds-primary text-white text-sm font-semibold rounded-cds-pill hover:bg-cds-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
+              <i className={`pi ${savingDate ? 'pi-spin pi-spinner' : 'pi-check'} text-xs`}></i>
               {savingDate ? 'Guardando…' : 'Guardar'}
             </button>
           </div>
@@ -207,6 +246,7 @@ export default function ProfilePage() {
           )}
           {profileBirthDate && !dateError && (
             <p className="text-xs text-cds-muted">
+              <i className="pi pi-check-circle text-cds-positive mr-1 text-[10px]"></i>
               Guardado: {profileBirthDate}
             </p>
           )}
@@ -214,7 +254,10 @@ export default function ProfilePage() {
 
         {/* Month History Section */}
         <section className="border border-cds-border bg-cds-surface rounded-cds-lg p-6 space-y-3">
-          <h2 className="text-sm font-semibold text-cds-foreground">Historial de meses</h2>
+          <div className="flex items-center gap-2">
+            <i className="pi pi-clock text-cds-muted text-sm"></i>
+            <h2 className="text-sm font-semibold text-cds-foreground">Historial de meses</h2>
+          </div>
 
           {monthsLoading ? (
             <div className="space-y-2">
@@ -246,11 +289,13 @@ export default function ProfilePage() {
                         {monthName} {year}
                       </span>
                       <div className="flex items-center gap-3 mt-0.5">
-                        <span className="text-xs text-cds-positive">
-                          +{formatCurrency(totalIncome)}
+                        <span className="text-xs text-cds-positive flex items-center gap-1">
+                          <i className="pi pi-arrow-up text-[9px]"></i>
+                          {formatCurrency(totalIncome)}
                         </span>
-                        <span className="text-xs text-cds-negative">
-                          -{formatCurrency(totalExpenses)}
+                        <span className="text-xs text-cds-negative flex items-center gap-1">
+                          <i className="pi pi-arrow-down text-[9px]"></i>
+                          {formatCurrency(totalExpenses)}
                         </span>
                       </div>
                     </div>

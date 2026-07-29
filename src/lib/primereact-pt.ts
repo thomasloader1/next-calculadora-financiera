@@ -49,7 +49,7 @@ export const cdsPT: PrimeReactPTOptions = {
     input: { className: 'cursor-pointer' },
     panel: {
       className:
-        'bg-cds-canvas dark:bg-cds-dark border border-cds-border rounded-cds-sm shadow-lg mt-1',
+        'bg-cds-canvas dark:bg-cds-dark border border-cds-border rounded-cds-sm shadow-lg mt-1 z-50',
     },
     item: {
       className:
@@ -66,14 +66,16 @@ export const cdsPT: PrimeReactPTOptions = {
   },
 
   inputswitch: {
-    root: {
+    root: (options) => ({
+      className: `relative inline-flex items-center h-5 w-9 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cds-primary focus-visible:ring-offset-2 cursor-pointer ${options?.props?.checked ? 'bg-cds-primary' : 'bg-cds-border'}`,
+    }),
+    input: {
       className:
-        'relative inline-flex h-5 w-9 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cds-primary focus-visible:ring-offset-2 cursor-pointer',
+        'absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10',
     },
-    slider: {
-      className:
-        'pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform duration-200',
-    },
+    slider: (options) => ({
+      className: `pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${options?.props?.checked ? 'translate-x-[18px]' : 'translate-x-[2px]'}`,
+    }),
   },
 
   tooltip: {
@@ -84,6 +86,13 @@ export const cdsPT: PrimeReactPTOptions = {
     arrow: {
       className:
         'absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-cds-dark',
+    },
+  },
+
+  inputmask: {
+    root: {
+      className:
+        'bg-cds-canvas dark:bg-cds-dark border border-cds-border rounded-cds-sm px-3 py-2.5 text-sm text-cds-foreground dark:text-white placeholder:text-cds-muted focus:border-cds-primary focus:shadow-[0_0_0_2px_rgba(0,82,255,0.15)] outline-none transition-colors duration-150 w-full',
     },
   },
 

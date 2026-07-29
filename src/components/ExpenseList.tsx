@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Chip } from '@/components/ui/Chip';
 import { Tooltip, TooltipContent } from '@/components/ui/Tooltip';
 import { formatAmount, formatUsdAmount } from '@/lib/formatAmount';
@@ -48,10 +48,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ categoryKey, label, expenses,
   const { deleteExpense } = useExpenseContext();
   const chipColor = chipColorForCategory[categoryKey] || 'primary';
 
-  const remaining = useMemo(
-    () => (cash || 0) - expenses.reduce((sum, e) => sum + e.amount, 0),
-    [cash, expenses]
-  );
+  const remaining = cash; // cash is now post-expense available amount
 
   const isNegative = remaining < 0;
   const transferExpenses = expenses.filter(e => e.isTransfer);
@@ -70,12 +67,12 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ categoryKey, label, expenses,
         <div className={`text-cds-on-primary font-bold rounded-cds-sm w-12 h-12 flex items-center justify-center text-sm ${isNegative ? 'bg-cds-negative' : 'bg-cds-primary'}`}>
           <span>{percent}%</span>
         </div>
-        <div className="flex justify-between w-full items-center">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col justify-between w-full ">
+          <div className="flex items-center gap-2 mb-2">
             <h2 className="text-base font-semibold text-cds-foreground">{label}</h2>
-            <Tooltip content={CATEGORY_INFO[categoryKey]} />
+            <Tooltip content={CATEGORY_INFO[categoryKey]}/>
           </div>
-          <Chip color={isNegative ? 'danger' : chipColor}>
+          <Chip color={isNegative ? 'danger' : chipColor} className="!text-center">
             {formatAmount(remaining)}
           </Chip>
         </div>

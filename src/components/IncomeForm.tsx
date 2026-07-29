@@ -1,11 +1,10 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useExpenseContext } from '@/context/Expense/ExpenseContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { Toggle } from '@/components/ui/Toggle';
-import { formatAmount } from '@/lib/formatAmount';
+import { formatAmount, parseMaskedAmount } from '@/lib/formatAmount';
 import { getRate, RateSource, DollarRate } from '@/lib/exchangeRate';
 
 const RATE_OPTIONS = [
@@ -15,8 +14,9 @@ const RATE_OPTIONS = [
 ];
 
 const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
-  const { addIncome } = useExpenseContext();
-  const [description, setDescription] = useState('Salario');
+  const { addIncome, incomes } = useExpenseContext();
+  const nextIdRef = useRef(incomes.length + 1);
+  const [description, setDescription] = useState(`Ingreso ${nextIdRef.current}`);
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS');
   const [rateSource, setRateSource] = useState<RateSource>('oficial');
@@ -42,7 +42,7 @@ const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
     : rate?.venta || 0;
 
   const handleAdd = () => {
-    const num = Number(amount);
+    const num = parseMaskedAmount(amount);
     if (!num || num <= 0 || !description.trim()) return;
 
     const inc: Parameters<typeof addIncome>[0] = {
@@ -63,7 +63,9 @@ const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
 
     addIncome(inc);
 
+    nextIdRef.current += 1;
     setAmount('');
+    setDescription(`Ingreso ${nextIdRef.current}`);
     onAdded?.();
   };
 
@@ -79,16 +81,17 @@ const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
         label="Descripción"
         value={description}
         onChange={setDescription}
-        placeholder="Salario, freelance..."
+        placeholder="Ingreso, freelance..."
       />
 
       <div className="flex gap-2 items-end">
         <Input
-          type="number"
+          type="text"
+          inputMode="decimal"
           label={currency === 'USD' ? 'Monto (USD)' : 'Monto'}
           value={amount}
           onChange={setAmount}
-          placeholder="0.00"
+          placeholder="150000"
           prefix={<span className="text-cds-muted text-sm">{currency === 'USD' ? 'U$' : '$'}</span>}
           description={amount !== '' && currency === 'ARS' && formatAmount(amount)}
           className="flex-1"
@@ -154,7 +157,7 @@ const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
 
           {amount && effectiveRate > 0 && (
             <p className="text-xs text-cds-muted">
-              ≈ {formatAmount(Number(amount) * effectiveRate)} ARS
+              ≈ {formatAmount(parseMaskedAmount(amount) * effectiveRate)} ARS
             </p>
           )}
         </div>
@@ -163,7 +166,7 @@ const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
       <Button
         size="sm"
         onClick={handleAdd}
-        isDisabled={!amount || Number(amount) <= 0 || !description.trim() || (currency === 'USD' && effectiveRate <= 0)}
+        isDisabled={!amount || parseMaskedAmount(amount) <= 0 || !description.trim() || (currency === 'USD' && effectiveRate <= 0)}
       >
         Agregar ingreso
       </Button>

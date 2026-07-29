@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { toast } from 'sonner';
+import { parseMaskedAmount } from '@/lib/formatAmount';
 
 const CATEGORY_OPTIONS = [
   { key: 'needs', label: 'Necesidad' },
@@ -35,12 +36,13 @@ const TransferForm: React.FC<TransferFormProps> = ({ onTransferred }) => {
 
   const remaining = useMemo(() => {
     if (!cash) return { needs: 0, wants: 0, savings: 0 };
+    // cash is now post-expense available amounts
     return {
-      needs: Math.round((cash.needs - needs.reduce((s, e) => s + e.amount, 0)) * 100) / 100,
-      wants: Math.round((cash.wants - wants.reduce((s, e) => s + e.amount, 0)) * 100) / 100,
-      savings: Math.round((cash.savings - savings.reduce((s, e) => s + e.amount, 0)) * 100) / 100,
+      needs: cash.needs,
+      wants: cash.wants,
+      savings: cash.savings,
     };
-  }, [cash, needs, wants, savings]);
+  }, [cash]);
 
   const availableOptions = CATEGORY_OPTIONS.filter(opt => {
     const rem = remaining[opt.key as CategoryKey];
@@ -55,7 +57,7 @@ const TransferForm: React.FC<TransferFormProps> = ({ onTransferred }) => {
       return;
     }
 
-    const parsedAmount = Number(amount);
+    const parsedAmount = parseMaskedAmount(amount);
     if (parsedAmount <= 0) {
       toast.warning('El monto debe ser mayor a cero.');
       return;
@@ -98,11 +100,12 @@ const TransferForm: React.FC<TransferFormProps> = ({ onTransferred }) => {
             placeholder="Categoría destino"
           />
           <Input
-            type="number"
+            type="text"
+            inputMode="decimal"
             label="Monto"
             value={amount}
             onChange={setAmount}
-            placeholder="0.00"
+            placeholder="150000"
             prefix={<span className="text-cds-muted text-sm">$</span>}
           />
         </div>
@@ -160,11 +163,12 @@ const TransferForm: React.FC<TransferFormProps> = ({ onTransferred }) => {
               placeholder="Categoría destino"
             />
             <Input
-              type="number"
+              type="text"
+              inputMode="decimal"
               label="Monto"
               value={amount}
               onChange={setAmount}
-              placeholder="0.00"
+              placeholder="150000"
               prefix={<span className="text-cds-muted text-sm">$</span>}
             />
           </div>

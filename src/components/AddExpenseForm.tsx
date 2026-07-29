@@ -6,6 +6,7 @@ import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { Toggle } from '@/components/ui/Toggle';
 import { getOfficialRate, DollarRate } from '@/lib/exchangeRate';
+import { parseMaskedAmount } from '@/lib/formatAmount';
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 
@@ -56,7 +57,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ defaultCategory, onAdde
       return;
     }
 
-    const numericAmount = +Number(expense);
+    const numericAmount = parseMaskedAmount(expense);
     const newExpense: Expense = {
       id: (Math.random() + Date.now()).toString(),
       description: expenseDescription !== "" ? `${expenseDescription}` : "Sin descripción",
@@ -117,15 +118,13 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ defaultCategory, onAdde
       )}
 
       <Input
-        onClear={() => {
-          setExpense('');
-        }}
-        type="number"
+        type="text"
+        inputMode="decimal"
         label={isUsd ? 'Gasto (USD)' : 'Gasto'}
-        description={expense !== '' && (isUsd && rate ? `≈ ${formatAmountInner(+Number(expense) * rate.venta)}` : `$ ${expense}`)}
+        description={expense !== '' && (isUsd && rate ? `≈ ${formatAmountInner(parseMaskedAmount(expense) * rate.venta)}` : `$ ${expense}`)}
         value={expense}
         onChange={setExpense}
-        placeholder='0.00'
+        placeholder='150000'
         className='w-full'
         prefix={<span className="text-cds-muted text-sm">{isUsd ? 'U$' : '$'}</span>}
       />

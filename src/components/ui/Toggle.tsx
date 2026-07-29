@@ -24,7 +24,7 @@ export const Toggle: React.FC<ToggleProps> = ({
     >
       <InputSwitch
         checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
+        onChange={(e) => onChange(e.value)}
         disabled={disabled}
       />
       {label && <span className="text-sm text-cds-foreground">{label}</span>}

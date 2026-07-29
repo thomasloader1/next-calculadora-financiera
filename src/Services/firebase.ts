@@ -7,6 +7,18 @@ import { Transfer } from '@/interfaces/Transfer';
 const DEFAULT_SPLIT = { needs: 50, wants: 30, savings: 20 } as const;
 const COLLECTION = 'financeCalculator';
 
+type MonthMap = Record<string, MonthBudget>;
+
+interface UserDoc {
+  email?: string;
+  displayName?: string;
+  photoURL?: string;
+  birthDate?: string;
+  createdAt?: any;
+  updatedAt?: any;
+  months?: MonthMap;
+}
+
 function migrateCash(cash: Record<string, unknown> | undefined): CashState {
   if (!cash) {
     return { needs: 0, wants: 0, savings: 0, totalIncome: 0, split: { ...DEFAULT_SPLIT } };
@@ -146,99 +158,123 @@ export async function isFirebaseAvailable(): Promise<boolean> {
   return initFirebase();
 }
 
-// --- Data operations (Firestore or localStorage) ---
+// --- Storage helpers ---
 
-function lsKey(uid: string, month: string) {
-  return `calc:${uid}:${month}`;
+function lsDocKey(uid: string) {
+  return `calc:${uid}:doc`;
 }
 
-function lsMonthsKey(uid: string) {
-  return `calc:${uid}:months`;
+function readDoc(uid: string): UserDoc {
+  try {
+    return JSON.parse(localStorage.getItem(lsDocKey(uid)) || '{}');
+  } catch {
+    return {};
+  }
 }
+
+function writeDoc(uid: string, doc: UserDoc): void {
+  localStorage.setItem(lsDocKey(uid), JSON.stringify(doc));
+}
+
+/** Removes undefined values recursively for Firestore compat */
+function stripUndefined(obj: any): any {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(stripUndefined);
+  const result: Record<string, any> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) {
+      result[k] = stripUndefined(v);
+    }
+  }
+  return result;
+}
+
+// --- Read/Write user doc from Firestore ---
+
+async function getFirestoreDoc(uid: string): Promise<UserDoc | null> {
+  const { doc, getDoc } = await import('firebase/firestore');
+  const snap = await getDoc(doc(firebaseDb, COLLECTION, uid));
+  return snap.exists() ? (snap.data() as UserDoc) : null;
+}
+
+async function setFirestoreDoc(uid: string, data: Partial<UserDoc>, merge = true): Promise<void> {
+  const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+  await setDoc(
+    doc(firebaseDb, COLLECTION, uid),
+    stripUndefined({ ...data, updatedAt: serverTimestamp() }),
+    { merge }
+  );
+}
+
+// --- Budget operations (stored in doc.months) ---
 
 export const saveMonthBudget = async (uid: string, month: string, data: MonthBudget) => {
   const fbOk = await initFirestore();
   if (fbOk) {
-    const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
-    await setDoc(doc(firebaseDb, COLLECTION, uid, 'months', month), {
-      ...data,
-      schemaVersion: 2,
-      updatedAt: serverTimestamp()
+    await setFirestoreDoc(uid, {
+      months: { [month]: { ...stripUndefined(data), schemaVersion: 2 } },
     });
     return;
   }
   // localStorage fallback
-  localStorage.setItem(lsKey(uid, month), JSON.stringify(data));
-  const months = JSON.parse(localStorage.getItem(lsMonthsKey(uid)) || '[]');
-  if (!months.includes(month)) {
-    months.push(month);
-    localStorage.setItem(lsMonthsKey(uid), JSON.stringify(months.sort().reverse()));
-  }
+  const doc = readDoc(uid);
+  doc.months = doc.months || {};
+  doc.months[month] = data as any;
+  writeDoc(uid, doc);
 };
 
 export const loadMonthBudget = async (uid: string, month: string): Promise<MonthBudget | null> => {
   const fbOk = await initFirestore();
   if (fbOk) {
-    const { doc, getDoc } = await import('firebase/firestore');
-    const snap = await getDoc(doc(firebaseDb, COLLECTION, uid, 'months', month));
-    if (!snap.exists()) return null;
-    const raw = snap.data();
-    const version = raw.schemaVersion;
+    const userDoc = await getFirestoreDoc(uid);
+    const raw = userDoc?.months?.[month];
+    if (!raw) return null;
+    const version = (raw as any).schemaVersion;
     if (!version || version < 2) {
-      return migrateV1ToV2(raw as Record<string, unknown>);
+      return migrateV1ToV2(raw as unknown as Record<string, unknown>);
     }
     return raw as MonthBudget;
   }
   // localStorage fallback
-  const raw = localStorage.getItem(lsKey(uid, month));
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as MonthBudget;
-  } catch {
-    return null;
-  }
+  const doc = readDoc(uid);
+  return (doc.months?.[month] as MonthBudget) || null;
 };
 
 export const getUserMonths = async (uid: string): Promise<string[]> => {
   const fbOk = await initFirestore();
   if (fbOk) {
-    const { collection, getDocs } = await import('firebase/firestore');
-    const snap = await getDocs(collection(firebaseDb, COLLECTION, uid, 'months'));
-    return snap.docs.map((d: any) => d.id).sort().reverse();
+    const userDoc = await getFirestoreDoc(uid);
+    return Object.keys(userDoc?.months || {}).sort().reverse();
   }
   // localStorage fallback
-  const months = JSON.parse(localStorage.getItem(lsMonthsKey(uid)) || '[]');
-  return months.sort().reverse();
+  const doc = readDoc(uid);
+  return Object.keys(doc.months || {}).sort().reverse();
 };
+
+// --- User profile (stored in doc root) ---
 
 export const saveUserProfile = async (uid: string, data: Partial<UserProfile>) => {
   const fbOk = await initFirestore();
   if (fbOk) {
-    const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
-    await setDoc(doc(firebaseDb, COLLECTION, uid), {
-      ...data,
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
+    await setFirestoreDoc(uid, data as any);
     return;
   }
-  localStorage.setItem(`calc:${uid}:profile`, JSON.stringify(data));
+  const doc = readDoc(uid);
+  Object.assign(doc, data);
+  writeDoc(uid, doc);
 };
 
 export const loadUserProfile = async (uid: string): Promise<UserProfile | null> => {
   const fbOk = await initFirestore();
   if (fbOk) {
-    const { doc, getDoc } = await import('firebase/firestore');
-    const snap = await getDoc(doc(firebaseDb, COLLECTION, uid));
-    if (!snap.exists()) return null;
-    return snap.data() as UserProfile;
+    const userDoc = await getFirestoreDoc(uid);
+    if (!userDoc) return null;
+    const { months, ...profile } = userDoc;
+    return profile as UserProfile;
   }
-  const raw = localStorage.getItem(`calc:${uid}:profile`);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as UserProfile;
-  } catch {
-    return null;
-  }
+  const doc = readDoc(uid);
+  const { months, ...profile } = doc;
+  return Object.keys(profile).length > 0 ? (profile as UserProfile) : null;
 };
 
 export const ensureUserDocument = async (
@@ -247,35 +283,33 @@ export const ensureUserDocument = async (
 ) => {
   const fbOk = await initFirestore();
   if (fbOk) {
-    const { doc, getDoc, setDoc, serverTimestamp } = await import('firebase/firestore');
-    const userRef = doc(firebaseDb, COLLECTION, uid);
-    const snap = await getDoc(userRef);
-    if (!snap.exists()) {
-      await setDoc(userRef, {
+    const existing = await getFirestoreDoc(uid);
+    if (!existing) {
+      const { serverTimestamp } = await import('firebase/firestore');
+      await setFirestoreDoc(uid, {
         email: profile.email || '',
         displayName: profile.displayName || '',
         photoURL: profile.photoURL || '',
+        months: {},
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      }, false);
     } else {
-      await setDoc(userRef, {
+      await setFirestoreDoc(uid, {
         email: profile.email || '',
         displayName: profile.displayName || '',
         photoURL: profile.photoURL || '',
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
+      });
     }
     return;
   }
-  const existing = localStorage.getItem(`calc:${uid}:profile`);
-  if (!existing) {
-    localStorage.setItem(`calc:${uid}:profile`, JSON.stringify({
-      email: profile.email,
-      displayName: profile.displayName,
-      photoURL: profile.photoURL,
-      createdAt: new Date().toISOString(),
-    }));
+  const doc = readDoc(uid);
+  if (!doc.email && !doc.displayName) {
+    doc.email = profile.email || '';
+    doc.displayName = profile.displayName || '';
+    doc.photoURL = profile.photoURL || '';
+    doc.months = doc.months || {};
+    doc.createdAt = new Date().toISOString();
+    writeDoc(uid, doc);
   }
 };
 
