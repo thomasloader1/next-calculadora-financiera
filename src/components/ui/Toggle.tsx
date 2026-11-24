@@ -1,5 +1,5 @@
-import React from 'react';
-import { InputSwitch } from 'primereact/inputswitch';
+'use client';
+import React, { forwardRef } from 'react';
 
 interface ToggleProps {
   label?: string;
@@ -9,25 +9,42 @@ interface ToggleProps {
   className?: string;
 }
 
-export const Toggle: React.FC<ToggleProps> = ({
-  label,
-  checked,
-  onChange,
-  disabled = false,
-  className = '',
-}) => {
-  return (
-    <label
-      className={`inline-flex items-center gap-2 cursor-pointer select-none ${
-        disabled ? 'opacity-50 cursor-not-allowed' : ''
-      } ${className}`}
-    >
-      <InputSwitch
-        checked={checked}
-        onChange={(e) => onChange(e.value)}
-        disabled={disabled}
-      />
-      {label && <span className="text-sm text-cds-foreground">{label}</span>}
-    </label>
-  );
-};
+export const Toggle = forwardRef<HTMLLabelElement, ToggleProps>(
+  (
+    {
+      label,
+      checked,
+      onChange,
+      disabled = false,
+      className = '',
+    },
+    ref
+  ) => {
+    return (
+      <label
+        ref={ref}
+        className={`inline-flex items-center gap-2 cursor-pointer select-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
+      >
+        <button
+          type="button"
+          role="switch"
+          aria-checked={checked}
+          onClick={() => !disabled && onChange(!checked)}
+          disabled={disabled}
+          className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full border-2 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-notion-accent focus:ring-offset-2 ${
+            checked ? 'bg-notion-accent border-notion-accent' : 'bg-notion-surface border-notion-border'
+          }`}
+        >
+          <span
+            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform duration-200 ${
+              checked ? 'translate-x-4' : 'translate-x-1'
+            }`}
+          />
+        </button>
+        {label && <span className="notion-body-sm">{label}</span>}
+      </label>
+    );
+  }
+);
+
+Toggle.displayName = 'Toggle';

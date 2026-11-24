@@ -1,6 +1,7 @@
 'use client';
-import React, { useEffect } from 'react';
-import { Dialog } from 'primereact/dialog';
+
+import React, { useEffect, Fragment } from 'react';
+import { Dialog, Transition } from '@headlessui/react';
 
 interface ModalProps {
   isOpen: boolean;
@@ -14,9 +15,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
   useEffect(() => {
     if (isOpen) {
       const timer = setTimeout(() => {
-        const el = document.querySelector('[data-pc-section="header"] + [data-pc-section="content"]') as HTMLElement;
-        if (el) {
-          const focusable = el.querySelector<HTMLElement>('input, select, textarea, button:not([disabled])');
+        const content = document.querySelector('[role="dialog"]') as HTMLElement;
+        if (content) {
+          const focusable = content.querySelector<HTMLElement>('input, select, textarea, button:not([disabled])');
           focusable?.focus();
         }
       }, 100);
@@ -25,38 +26,56 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
   }, [isOpen]);
 
   return (
-    <Dialog
-      visible={isOpen}
-      onHide={onClose}
-      header={title}
-      modal
-      closable
-      closeOnEscape
-      dismissableMask
-      draggable={false}
-      resizable={false}
-      blockScroll
-      aria-labelledby="modal-title"
-      aria-modal="true"
-      className="max-w-md w-full"
-      contentClassName="p-0"
-      pt={{
-        header: {
-          className: 'px-5 py-4 border-b border-cds-border',
-        },
-        headerTitle: {
-          className: 'text-sm font-semibold text-cds-foreground dark:text-white',
-        },
-        closeButton: {
-          className: 'w-7 h-7 flex items-center justify-center rounded-full hover:bg-cds-surface dark:hover:bg-cds-surface-dark text-cds-muted hover:text-cds-foreground transition-colors',
-        },
-        content: {
-          className: 'p-5 bg-cds-surface rounded-b-cds-lg',
-        },
-      }}
-    >
-      {children}
-    </Dialog>
+    <Transition appear show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-200"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-150"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-[#2C211B]/30 dark:bg-black/60 backdrop-blur-xs" />
+        </Transition.Child>
+
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-200"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-150"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
+            >
+              <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-3xl bg-[#FAF6F0] dark:bg-[#1E1814] border border-[#F0D7BC] dark:border-[#3A2E25] shadow-2xl text-left align-middle transition-all">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-[#F0D7BC] dark:border-[#3A2E25]">
+                  <Dialog.Title className="text-base font-bold text-[#2C211B] dark:text-white tracking-tight">
+                    {title}
+                  </Dialog.Title>
+                  <button
+                    type="button"
+                    className="w-8 h-8 flex items-center justify-center rounded-full text-[#6B5547] hover:text-[#2C211B] dark:text-[#C4B1A3] dark:hover:text-white hover:bg-[#FFEAD3] dark:hover:bg-[#261F1A] transition-colors cursor-pointer"
+                    onClick={onClose}
+                    aria-label="Cerrar modal"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="p-6">
+                  {children}
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </div>
+      </Dialog>
+    </Transition>
   );
 };
 

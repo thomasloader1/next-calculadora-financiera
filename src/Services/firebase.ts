@@ -126,10 +126,13 @@ async function initFirestore(): Promise<boolean> {
 
 // --- Local uid ---
 function getLocalUid(): string {
+  if (typeof window === 'undefined') return 'server_uid';
   const KEY = 'calc:anon-uid';
   let uid = localStorage.getItem(KEY);
   if (!uid) {
-    uid = crypto.randomUUID();
+    uid = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+      ? crypto.randomUUID()
+      : 'anon_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now().toString(36);
     localStorage.setItem(KEY, uid);
   }
   return uid;
@@ -151,6 +154,11 @@ export function getCurrentUserId(): string {
 /** Store the current Firebase user uid so getCurrentUserId() returns it */
 export function setFirebaseUserUid(uid: string | null): void {
   (globalThis as any).__firebaseUserUid = uid;
+}
+
+/** True when Firebase env vars are present (Google login can be offered). */
+export function isFirebaseConfigured(): boolean {
+  return FIREBASE_CONFIG !== null;
 }
 
 /** Returns true if Firebase (Cloud) is available and initialized */
@@ -206,56 +214,157 @@ async function setFirestoreDoc(uid: string, data: Partial<UserDoc>, merge = true
   );
 }
 
+function isAuthUser(uid: string): boolean {
+  return !!firebaseAuth?.currentUser && firebaseAuth.currentUser.uid === uid;
+}
+
 // --- Budget operations (stored in doc.months) ---
 
 export const saveMonthBudget = async (uid: string, month: string, data: MonthBudget) => {
-  const fbOk = await initFirestore();
-  if (fbOk) {
-    await setFirestoreDoc(uid, {
-      months: { [month]: { ...stripUndefined(data), schemaVersion: 2 } },
-    });
-    return;
-  }
-  // localStorage fallback
+  // Always update localStorage for fast cache & offline support
   const doc = readDoc(uid);
   doc.months = doc.months || {};
   doc.months[month] = data as any;
   writeDoc(uid, doc);
+
+  // If authenticated with Firebase, also persist to Firestore
+  if (isAuthUser(uid)) {
+    const fbOk = await initFirestore();
+    if (fbOk) {
+      try {
+        await setFirestoreDoc(uid, {
+          months: { [month]: { ...stripUndefined(data), schemaVersion: 2 } },
+        });
+      } catch (err) {
+        console.warn('Error saving to Firestore, local copy preserved:', err);
+      }
+    }
+  }
 };
 
 export const loadMonthBudget = async (uid: string, month: string): Promise<MonthBudget | null> => {
-  const fbOk = await initFirestore();
-  if (fbOk) {
-    const userDoc = await getFirestoreDoc(uid);
-    const raw = userDoc?.months?.[month];
-    if (!raw) return null;
-    const version = (raw as any).schemaVersion;
-    if (!version || version < 2) {
-      return migrateV1ToV2(raw as unknown as Record<string, unknown>);
+  // If authenticated, attempt to fetch from Firestore first
+  if (isAuthUser(uid)) {
+    const fbOk = await initFirestore();
+    if (fbOk) {
+      try {
+        const userDoc = await getFirestoreDoc(uid);
+        const raw = userDoc?.months?.[month];
+        if (raw) {
+          const version = (raw as any).schemaVersion;
+          const budget = (!version || version < 2)
+            ? migrateV1ToV2(raw as unknown as Record<string, unknown>)
+            : (raw as MonthBudget);
+          
+          // Sync back to local cache
+          const localDoc = readDoc(uid);
+          localDoc.months = localDoc.months || {};
+          localDoc.months[month] = budget as any;
+          writeDoc(uid, localDoc);
+
+          return budget;
+        }
+      } catch (err) {
+        console.warn('Error loading from Firestore, falling back to localStorage:', err);
+      }
     }
-    return raw as MonthBudget;
   }
-  // localStorage fallback
+
+  // Fallback / unauthenticated (deslogeado) mode: read from localStorage
   const doc = readDoc(uid);
   return (doc.months?.[month] as MonthBudget) || null;
 };
 
 export const getUserMonths = async (uid: string): Promise<string[]> => {
-  const fbOk = await initFirestore();
-  if (fbOk) {
-    const userDoc = await getFirestoreDoc(uid);
-    return Object.keys(userDoc?.months || {}).sort().reverse();
+  // If authenticated, attempt to fetch from Firestore
+  if (isAuthUser(uid)) {
+    const fbOk = await initFirestore();
+    if (fbOk) {
+      try {
+        const userDoc = await getFirestoreDoc(uid);
+        if (userDoc?.months) {
+          return Object.keys(userDoc.months).sort().reverse();
+        }
+      } catch (err) {
+        console.warn('Error getting months from Firestore, falling back to localStorage:', err);
+      }
+    }
   }
-  // localStorage fallback
+
+  // Local fallback
   const doc = readDoc(uid);
   return Object.keys(doc.months || {}).sort().reverse();
+};
+
+/**
+ * Migrates data entered anonymously into the authenticated Google account.
+ */
+export const migrateAnonymousDataToUser = async (targetUid: string): Promise<number> => {
+  if (typeof window === 'undefined') return 0;
+  const anonUid = localStorage.getItem('calc:anon-uid');
+  if (!anonUid || anonUid === targetUid) return 0;
+
+  const anonDoc = readDoc(anonUid);
+  const anonMonths = anonDoc.months || {};
+  const monthKeys = Object.keys(anonMonths);
+
+  if (monthKeys.length === 0) return 0;
+
+  const fbOk = await initFirestore();
+  if (fbOk) {
+    try {
+      const existingDoc = await getFirestoreDoc(targetUid);
+      const existingMonths = existingDoc?.months || {};
+
+      const mergedMonths = { ...existingMonths };
+      let migratedCount = 0;
+
+      for (const m of monthKeys) {
+        // If user doesn't have this month or it's empty, copy anonymous data
+        if (!mergedMonths[m] || Object.keys(mergedMonths[m]).length === 0) {
+          mergedMonths[m] = anonMonths[m];
+          migratedCount++;
+        }
+      }
+
+      if (migratedCount > 0) {
+        await setFirestoreDoc(targetUid, { months: stripUndefined(mergedMonths) });
+        // Update local cache for target user
+        const targetLocalDoc = readDoc(targetUid);
+        targetLocalDoc.months = { ...(targetLocalDoc.months || {}), ...mergedMonths };
+        writeDoc(targetUid, targetLocalDoc);
+      }
+
+      // Remove anon doc now that it's migrated
+      localStorage.removeItem(lsDocKey(anonUid));
+      return migratedCount;
+    } catch (err) {
+      // Keep the anonymous data so the migration can be retried on the next login
+      console.warn('Failed to migrate anonymous data to Firestore:', err);
+      return 0;
+    }
+  }
+
+  // Local-only migration fallback (never overwrite months the target already has)
+  const targetLocalDoc = readDoc(targetUid);
+  const targetMonths = { ...(targetLocalDoc.months || {}) };
+  let migratedCount = 0;
+  for (const m of monthKeys) {
+    if (!targetMonths[m] || Object.keys(targetMonths[m]).length === 0) {
+      targetMonths[m] = anonMonths[m];
+      migratedCount++;
+    }
+  }
+  targetLocalDoc.months = targetMonths;
+  writeDoc(targetUid, targetLocalDoc);
+  localStorage.removeItem(lsDocKey(anonUid));
+  return migratedCount;
 };
 
 // --- User profile (stored in doc root) ---
 
 export const saveUserProfile = async (uid: string, data: Partial<UserProfile>) => {
-  const fbOk = await initFirestore();
-  if (fbOk) {
+  if (isAuthUser(uid) && await initFirestore()) {
     await setFirestoreDoc(uid, data as any);
     return;
   }
@@ -265,8 +374,7 @@ export const saveUserProfile = async (uid: string, data: Partial<UserProfile>) =
 };
 
 export const loadUserProfile = async (uid: string): Promise<UserProfile | null> => {
-  const fbOk = await initFirestore();
-  if (fbOk) {
+  if (isAuthUser(uid) && await initFirestore()) {
     const userDoc = await getFirestoreDoc(uid);
     if (!userDoc) return null;
     const { months, ...profile } = userDoc;
@@ -275,6 +383,47 @@ export const loadUserProfile = async (uid: string): Promise<UserProfile | null> 
   const doc = readDoc(uid);
   const { months, ...profile } = doc;
   return Object.keys(profile).length > 0 ? (profile as UserProfile) : null;
+};
+
+/** Removes the local cache of an account (called on logout so data doesn't linger on shared devices). */
+export function clearLocalCache(uid: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(lsDocKey(uid));
+}
+
+/** Returns every stored month for a uid (Firestore when authenticated, localStorage otherwise). */
+export const getAllMonths = async (uid: string): Promise<Record<string, MonthBudget>> => {
+  if (isAuthUser(uid) && await initFirestore()) {
+    try {
+      const userDoc = await getFirestoreDoc(uid);
+      if (userDoc?.months) return userDoc.months;
+    } catch (err) {
+      console.warn('Error reading months from Firestore, falling back to localStorage:', err);
+    }
+  }
+  return readDoc(uid).months || {};
+};
+
+/**
+ * Restores months from a backup. Only months the user doesn't already have are written
+ * (existing data is never overwritten). Returns which months were restored / skipped.
+ */
+export const restoreMonths = async (
+  uid: string,
+  months: Record<string, MonthBudget>
+): Promise<{ restored: string[]; skipped: string[] }> => {
+  const existing = await getAllMonths(uid);
+  const restored: string[] = [];
+  const skipped: string[] = [];
+  for (const [month, data] of Object.entries(months)) {
+    if (existing[month] && Object.keys(existing[month]).length > 0) {
+      skipped.push(month);
+      continue;
+    }
+    await saveMonthBudget(uid, month, data);
+    restored.push(month);
+  }
+  return { restored, skipped };
 };
 
 export const ensureUserDocument = async (

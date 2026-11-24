@@ -120,7 +120,7 @@ describe('ExpenseContext recalculation integration', () => {
   describe('removeIncome', () => {
     it('recalculates cash from scratch when one of multiple incomes is removed', () => {
       const expenses = {
-        needs: [makeExpense({ amount: 60000 })],
+        needs: [makeExpense({ amount: 35000 })],
         wants: [],
         savings: [],
       };
@@ -130,17 +130,19 @@ describe('ExpenseContext recalculation integration', () => {
         [makeIncome({ id: 'inc_1', amount: 100000 }), makeIncome({ id: 'inc_2', amount: 50000 })],
         [], expenses, DEFAULT_SPLIT
       );
-      expect(initial.cash.needs).toBe(15000); // 75k - 60k = 15k
+      expect(initial.cash.needs).toBe(40000); // 75k - 35k = 40k
 
       // removeIncome removes inc_1 → only $50k remains
       const updated = recalculateCashFromScratch(
         [makeIncome({ id: 'inc_2', amount: 50000 })], [], expenses, DEFAULT_SPLIT
       );
-      // pool = 25k needs, expense = 60k → deficit → auto-borrow from savings (10k)
-      expect(updated.cash.needs).toBe(0);      // 25k - 60k + 10k (borrowed) = -25k → 0 after borrow
-      expect(updated.cash.savings).toBe(0);     // 10k - 10k (borrowed) = 0
+      // pool = 25k needs, expense = 35k → 10k deficit
+      // wants pool = 15k, savings pool = 10k → highest surplus is wants (15k)
+      expect(updated.cash.needs).toBe(0);      // 25k - 35k + 10k (borrowed) = 0
+      expect(updated.cash.wants).toBe(5000);    // 15k - 10k (borrowed) = 5k
+      expect(updated.cash.savings).toBe(10000); // unchanged at 10k
       expect(updated.autoLoans).toHaveLength(1);
-      expect(updated.autoLoans[0].from).toBe('savings');
+      expect(updated.autoLoans[0].from).toBe('wants');
       expect(updated.autoLoans[0].to).toBe('needs');
       expect(updated.autoLoans[0].amount).toBe(10000);
     });

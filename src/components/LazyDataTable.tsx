@@ -30,12 +30,12 @@ export const LazyDataTable = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="border border-cds-border rounded-cds-lg bg-cds-surface p-4">
-        <div className="h-4 w-32 bg-cds-surface-dark rounded animate-pulse mb-3" />
+      <div className="border border-notion-border rounded-notion-lg bg-notion-surface p-4">
+        <div className="h-4 w-32 bg-notion-surface rounded animate-pulse mb-3" />
         <div className="space-y-2">
-          <div className="h-3 w-full bg-cds-surface-dark rounded animate-pulse" />
-          <div className="h-3 w-4/5 bg-cds-surface-dark rounded animate-pulse" />
-          <div className="h-3 w-3/5 bg-cds-surface-dark rounded animate-pulse" />
+          <div className="h-3 w-full bg-notion-surface rounded animate-pulse" />
+          <div className="h-3 w-4/5 bg-notion-surface rounded animate-pulse" />
+          <div className="h-3 w-3/5 bg-notion-surface rounded animate-pulse" />
         </div>
       </div>
     ),

@@ -1,0 +1,26 @@
+{
+  "name": "Calculadora Financiera 50/30/20",
+  "short_name": "Finanzas 50/30/20",
+  "description": "Calculadora de presupuesto personal basada en la regla 50/30/20",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF6F0",
+  "theme_color": "#D46743",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Registrar Gasto Rápido",
+      "short_name": "Gasto Rápido",
+      "description": "Acceso ultra rápido a registro de gastos",
+      "url": "/quick-add",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    }
+  ]
+}

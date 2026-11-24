@@ -86,33 +86,50 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ defaultCategory, onAdde
     setIsUsd(checked);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (expense !== '' && expenseCategory !== '' && (!isUsd || rate)) {
+        handleAddExpense();
+      }
+    }
+  };
+
   const rateAge = rate?.fechaActualizacion
     ? new Date(rate.fechaActualizacion).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })
     : null;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <span className={`text-sm font-medium ${!isUsd ? 'text-cds-foreground' : 'text-cds-muted'}`}>ARS</span>
-        <Toggle
-          checked={isUsd}
-          onChange={handleToggleUsd}
-          label=""
-        />
-        <span className={`text-sm font-medium ${isUsd ? 'text-cds-foreground' : 'text-cds-muted'}`}>USD</span>
+    <div className="space-y-4" onKeyDown={handleKeyDown}>
+      {/* Currency Segmented Pill */}
+      <div className="calm-segmented-container">
+        <button
+          type="button"
+          onClick={() => handleToggleUsd(false)}
+          className={`calm-segmented-tab ${!isUsd ? 'calm-segmented-tab-active' : ''}`}
+        >
+          Pesos (ARS)
+        </button>
+        <button
+          type="button"
+          onClick={() => handleToggleUsd(true)}
+          className={`calm-segmented-tab ${isUsd ? 'calm-segmented-tab-active' : ''}`}
+        >
+          Dólares (USD)
+        </button>
       </div>
 
       {isUsd && (
-        <div className="text-xs rounded-cds-sm bg-cds-surface border border-cds-border px-3 py-2">
+        <div className="text-xs rounded-2xl bg-[#F4EFE8] dark:bg-[#1E2720] border border-[#E8E2D8] dark:border-[#2A362D] px-3.5 py-2.5">
           {rateError ? (
-            <span className="text-red-600">{rateError}</span>
+            <span className="text-[#B44C4C]">{rateError}</span>
           ) : rate ? (
             <div className="flex flex-col gap-0.5">
-              <span>1 USD = <strong>${rate.venta.toLocaleString('es-AR')}</strong> ARS</span>
-              {rateAge && <span className="text-cds-muted">Actualizado: {rateAge}</span>}
+              <span>1 USD = <strong className="font-bold text-[#232B25] dark:text-white">${rate.venta.toLocaleString('es-AR')}</strong> ARS</span>
+              {rateAge && <span className="text-[#5F6F63] dark:text-[#A3B4A5]">Actualizado: {rateAge}</span>}
             </div>
           ) : (
-            <span className="text-cds-muted">Cargando tipo de cambio...</span>
+            <span className="text-[#5F6F63] dark:text-[#A3B4A5]">Cargando cotización oficial...</span>
           )}
         </div>
       )}
@@ -120,18 +137,18 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ defaultCategory, onAdde
       <Input
         type="text"
         inputMode="decimal"
-        label={isUsd ? 'Gasto (USD)' : 'Gasto'}
+        label={isUsd ? 'Monto del gasto (USD)' : 'Monto del gasto (ARS)'}
         description={expense !== '' && (isUsd && rate ? `≈ ${formatAmountInner(parseMaskedAmount(expense) * rate.venta)}` : `$ ${expense}`)}
         value={expense}
         onChange={setExpense}
-        placeholder='150000'
+        placeholder='15000'
         className='w-full'
-        prefix={<span className="text-cds-muted text-sm">{isUsd ? 'U$' : '$'}</span>}
+        prefix={<span className="text-[#8A9A8E] text-sm">{isUsd ? 'US$' : '$'}</span>}
       />
 
       <Select
-        label="Categoria"
-        placeholder="Seleccione una categoria"
+        label="Categoría del fondo"
+        placeholder="Seleccione una categoría"
         value={expenseCategory}
         onChange={setExpenseCategory}
         options={groupNames.map((g) => ({ key: g.name, label: g.name }))}
@@ -139,19 +156,24 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ defaultCategory, onAdde
 
       <Textarea
         className='w-full'
-        label="Descripcion del gasto"
-        placeholder='Un panchito y una coca.'
+        label="Descripción del gasto"
+        placeholder='Ej. Supermercado, Alquiler, Salida...'
         value={expenseDescription}
         onChange={setExpenseDescription}
       />
 
-      <Button
-        size='sm'
-        isDisabled={expense === '' || expenseCategory === '' || (isUsd && !rate)}
-        onClick={handleAddExpense}
-      >
-        Agregar Gasto
-      </Button>
+      <div className="flex items-center justify-between pt-2">
+        <Button
+          size='md'
+          isDisabled={expense === '' || expenseCategory === '' || (isUsd && !rate)}
+          onClick={handleAddExpense}
+        >
+          Confirmar Gasto
+        </Button>
+        <span className="text-[11px] text-[#8A9A8E] font-mono">
+          <kbd className="px-1.5 py-0.5 bg-[#F4EFE8] dark:bg-[#1E2720] border border-[#E8E2D8] dark:border-[#2A362D] rounded-md text-[10px]">⌘/Ctrl+Enter</kbd>
+        </span>
+      </div>
     </div>
   );
 };

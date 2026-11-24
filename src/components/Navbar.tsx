@@ -1,14 +1,15 @@
 'use client';
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuthContext } from '@/context/Auth/AuthContext';
 import { useExpenseContext } from '@/context/Expense/ExpenseContext';
-import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import MonthSelector from './MonthSelector';
 import { nameToColor, getInitial } from '@/utils/avatar';
 import { ThemeToggle } from './ThemeToggle';
 import { importFromExcel } from '@/lib/excel';
 import { toast } from 'sonner';
+import { IPhoneIntegrationModal } from './IPhoneIntegrationModal';
 import type { CategoryKey } from '@/interfaces/Transfer';
 import type { Expense } from '@/interfaces/Expense';
 
@@ -19,9 +20,10 @@ const CATEGORY_MAP: Record<string, CategoryKey> = {
 };
 
 const Navbar: React.FC = () => {
-  const { user, loading, loginWithGoogle, logout } = useAuthContext();
-  const { isLoading } = useExpenseContext();
+  const { user, loading, cloudAvailable, loginWithGoogle, logout } = useAuthContext();
+  const { isLoading, addExpenseToCategory } = useExpenseContext();
   const [showProfile, setShowProfile] = useState(false);
+  const [showIPhoneModal, setShowIPhoneModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,25 +43,20 @@ const Navbar: React.FC = () => {
     try {
       const result = await importFromExcel(file);
       let count = 0;
-      const ctx = (window as any).__expenseContext;
-      if (ctx) {
-        for (const [sheetName, categoryKey] of Object.entries(CATEGORY_MAP)) {
-          const items = result[categoryKey === 'needs' ? 'needs' : categoryKey === 'wants' ? 'wants' : 'savings'] || [];
-          for (const item of items) {
-            const expense: Expense = {
-              id: (Math.random() + Date.now()).toString() + `_${count}`,
-              description: item.description || 'Importado',
-              amount: item.amount,
-              ...(item.currency === 'USD' ? { currency: 'USD' as const } : {}),
-            };
-            ctx.addExpenseToCategory(categoryKey, expense);
-            count++;
-          }
+      for (const [sheetName, categoryKey] of Object.entries(CATEGORY_MAP)) {
+        const items = result[categoryKey === 'needs' ? 'needs' : categoryKey === 'wants' ? 'wants' : 'savings'] || [];
+        for (const item of items) {
+          const expense: Expense = {
+            id: (Math.random() + Date.now()).toString() + `_${count}`,
+            description: item.description || 'Importado',
+            amount: item.amount,
+            ...(item.currency === 'USD' ? { currency: 'USD' as const } : {}),
+          };
+          addExpenseToCategory(categoryKey, expense);
+          count++;
         }
-        toast.success(`${count} gastos importados correctamente`);
-      } else {
-        toast.error('Contexto no disponible');
       }
+      toast.success(`${count} gastos importados correctamente`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error desconocido';
       toast.error(`No se pudo importar: ${message}`);
@@ -69,57 +66,73 @@ const Navbar: React.FC = () => {
   };
 
   return (
-    <nav className="sticky top-0 z-40 bg-cds-surface border-b border-cds-border">
-      <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+    <nav className="sticky top-0 z-40 bg-[#FAF6F0]/90 dark:bg-[#1E1814]/90 backdrop-blur-md border-b border-[#F0D7BC] dark:border-[#3A2E25] transition-colors">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between relative">
         {/* Logo / Brand */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-cds-primary rounded-cds-sm flex items-center justify-center">
-            <span className="text-white text-xs font-bold">50</span>
+        <Link href="/" className="flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-[#D46743] rounded-xl flex items-center justify-center shadow-xs">
+            <i className="pi pi-chart-pie text-white text-xs"></i>
           </div>
-          <span className="text-sm font-semibold text-cds-foreground tracking-tight">
-            Calculadora
-          </span>
-        </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-bold text-[#2C211B] dark:text-white tracking-tight leading-none">
+              Finanzas 50/30/20
+            </span>
+            <span className="text-[10px] text-[#6B5547] dark:text-[#C4B1A3] font-medium hidden sm:inline">
+              Presupuesto personal sereno
+            </span>
+          </div>
+        </Link>
 
         {/* Center — Month Selector */}
-        {user && !user.isAnonymous && (
-          <div className="absolute left-1/2 -translate-x-1/2">
+        {user && (
+          <div className="hidden sm:block absolute left-1/2 -translate-x-1/2">
             <MonthSelector isLoading={isLoading} />
           </div>
         )}
 
-        {/* Right side — grouped actions */}
-        <div className="flex items-center gap-1">
-          {/* Import button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            isIconOnly
+        {/* Right side — Actions */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Quick Import Excel button */}
+          <button
             onClick={() => fileInputRef.current?.click()}
-            className="h-8 w-8 text-cds-muted hover:text-cds-foreground hover:bg-cds-surface-dark"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[#6B5547] hover:text-[#2C211B] dark:text-[#C4B1A3] dark:hover:text-white hover:bg-[#FFEAD3] dark:hover:bg-[#2E2218] transition-colors cursor-pointer"
+            title="Importar Excel"
             aria-label="Importar Excel"
           >
-            <i className="pi pi-file-import text-sm"></i>
-          </Button>
+            <i className="pi pi-upload text-xs"></i>
+          </button>
           <input
             ref={fileInputRef}
             type="file"
-            accept=".xlsx,.xls"
+            accept=".xlsx,.xls,.csv"
             onChange={handleImport}
             className="hidden"
           />
 
+          {/* iPhone Shortcut button */}
+          <button
+            onClick={() => setShowIPhoneModal(true)}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[#6B5547] hover:text-[#2C211B] dark:text-[#C4B1A3] dark:hover:text-white hover:bg-[#FFEAD3] dark:hover:bg-[#2E2218] transition-colors cursor-pointer"
+            title="Integración con iPhone & Widgets"
+            aria-label="Integración con iPhone & Widgets"
+          >
+            <i className="pi pi-mobile text-xs"></i>
+          </button>
+
           {/* Theme toggle */}
           <ThemeToggle />
 
-          <div className="w-px h-5 bg-cds-border mx-1"></div>
+          <div className="w-px h-5 bg-[#E8E2D8] dark:border-[#2A362D] mx-1"></div>
 
           {user && !user.isAnonymous ? (
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setShowProfile(!showProfile)}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-cds-sm hover:bg-cds-surface-dark transition-colors cursor-pointer"
+                className="flex items-center gap-2 p-1 pl-2 rounded-full hover:bg-[#F4EFE8] dark:hover:bg-[#2A362D] transition-colors cursor-pointer border border-[#E8E2D8] dark:border-[#2A362D]"
               >
+                <span className="text-xs font-medium text-[#232B25] dark:text-[#F3F6F3] hidden md:inline">
+                  {user.displayName || user.email?.split('@')[0]}
+                </span>
                 {user.photoURL ? (
                   <img
                     src={user.photoURL}
@@ -129,76 +142,91 @@ const Navbar: React.FC = () => {
                 ) : (
                   <div
                     className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold ${nameToColor(user.displayName || user.email || '')}`}
-                    aria-label={user.displayName || user.email || 'User avatar'}
                   >
                     {getInitial(user.displayName || user.email)}
                   </div>
                 )}
-                <span className="text-xs text-cds-muted hidden sm:block">{user.displayName}</span>
               </button>
 
               {showProfile && (
-                <div className="absolute right-0 top-full mt-2 w-64 bg-cds-surface border border-cds-border rounded-cds-lg shadow-lg py-3 px-4 space-y-3 animate-fade-down">
-                  <div className="flex items-center gap-3">
-                    {user.photoURL ? (
-                      <img
-                        src={user.photoURL}
-                        alt={user.displayName || user.email || ''}
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold ${nameToColor(user.displayName || user.email || '')}`}
-                      >
-                        {getInitial(user.displayName || user.email)}
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-cds-foreground truncate">
-                        {user.displayName || 'Sin nombre'}
-                      </p>
-                      <p className="text-xs text-cds-muted truncate">
-                        {user.email}
-                      </p>
-                    </div>
+                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#1E2720] border border-[#E8E2D8] dark:border-[#2A362D] rounded-2xl shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-3.5 py-2 border-b border-[#E8E2D8] dark:border-[#2A362D]">
+                    <p className="text-xs font-semibold text-[#232B25] dark:text-white truncate">
+                      {user.displayName || 'Usuario'}
+                    </p>
+                    <p className="text-[11px] text-[#5F6F63] dark:text-[#A3B4A5] truncate">
+                      {user.email}
+                    </p>
+                    <p className="mt-1 text-[10px] font-semibold text-[#2A8187] inline-flex items-center gap-1">
+                      <i className="pi pi-cloud text-[10px]"></i>
+                      <span>Sincronizado con Google</span>
+                    </p>
                   </div>
-
-                  <div className="border-t border-cds-border pt-2 space-y-1">
+                  <div className="p-1">
                     <Link
                       href="/profile"
                       onClick={() => setShowProfile(false)}
-                      className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-cds-foreground hover:bg-cds-surface-dark rounded-cds-sm transition-colors"
+                      className="flex items-center gap-2.5 w-full px-3 py-1.5 text-xs text-[#232B25] dark:text-white hover:bg-[#F4EFE8] dark:hover:bg-[#2A362D] rounded-xl transition-colors"
                     >
-                      <i className="pi pi-user"></i>
-                      Mi perfil
+                      <i className="pi pi-user text-xs text-[#5F6F63]"></i>
+                      <span>Mi perfil</span>
                     </Link>
                     <button
-                      onClick={() => { logout(); setShowProfile(false); }}
-                      className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-cds-negative hover:bg-cds-surface-dark rounded-cds-sm transition-colors"
+                      type="button"
+                      onClick={() => { setShowIPhoneModal(true); setShowProfile(false); }}
+                      className="flex items-center gap-2.5 w-full px-3 py-1.5 text-xs text-[#232B25] dark:text-white hover:bg-[#F4EFE8] dark:hover:bg-[#2A362D] rounded-xl transition-colors text-left cursor-pointer"
                     >
-                      <i className="pi pi-sign-out"></i>
-                      Cerrar sesión
+                      <i className="pi pi-mobile text-xs text-[#5F6F63]"></i>
+                      <span>Atajos & Widgets</span>
+                    </button>
+                    <button
+                      onClick={() => { logout(); setShowProfile(false); }}
+                      className="flex items-center gap-2.5 w-full px-3 py-1.5 text-xs text-[#B44C4C] hover:bg-[#B44C4C]/10 rounded-xl transition-colors cursor-pointer"
+                    >
+                      <i className="pi pi-sign-out text-xs"></i>
+                      <span>Cerrar sesión</span>
                     </button>
                   </div>
                 </div>
               )}
             </div>
-          ) : null}
-
-          {/* Show Google login when anonymous or not logged in */}
-          {(!user || user.isAnonymous) && (
-            <Button
-              size="sm"
-              onClick={loginWithGoogle}
-              isLoading={loading}
-              className="h-8"
-              startContent={!loading && <i className="pi pi-google text-sm"></i>}
+          ) : !cloudAvailable ? (
+            <span
+              className="text-[11px] font-semibold text-[#9E8575] inline-flex items-center gap-1 px-2"
+              title="Tus datos se guardan solo en este dispositivo"
             >
-              Iniciar sesión
-            </Button>
+              <i className="pi pi-database text-[10px]"></i>
+              <span>Local</span>
+            </span>
+          ) : (
+            <button
+              onClick={loginWithGoogle}
+              disabled={loading}
+              className="calm-btn-primary py-2 px-4 text-xs font-medium"
+            >
+              {loading ? (
+                <i className="pi pi-spin pi-spinner text-xs"></i>
+              ) : (
+                <i className="pi pi-google text-xs"></i>
+              )}
+              <span>Iniciar sesión</span>
+            </button>
           )}
         </div>
       </div>
+
+      {/* Mobile MonthSelector bar: clean, slim, calm */}
+      {user && (
+        <div className="sm:hidden border-t border-[#E8E2D8] dark:border-[#2A362D] px-4 py-2 flex justify-center bg-[#FAF8F5]/80 dark:bg-[#19201B]/80">
+          <MonthSelector isLoading={isLoading} />
+        </div>
+      )}
+
+      {/* iPhone & Android Integration Modal */}
+      <IPhoneIntegrationModal
+        isOpen={showIPhoneModal}
+        onClose={() => setShowIPhoneModal(false)}
+      />
     </nav>
   );
 };

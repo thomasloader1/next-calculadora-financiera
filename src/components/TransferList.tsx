@@ -1,7 +1,7 @@
 'use client';
+
 import React, { useState } from 'react';
 import { useExpenseContext } from '@/context/Expense/ExpenseContext';
-import { Chip } from '@/components/ui/Chip';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Tooltip, TooltipContent } from '@/components/ui/Tooltip';
@@ -14,7 +14,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   savings: 'Ahorro',
 };
 
-const TransferList = () => {
+const TransferList: React.FC = () => {
   const { transfers, removeTransferAndExpense, updateTransferAmount } = useExpenseContext();
   const [editId, setEditId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState('');
@@ -39,31 +39,33 @@ const TransferList = () => {
   };
 
   return (
-    <div className="border border-cds-border rounded-cds-lg bg-cds-surface px-4 py-3 space-y-2">
-      <div className="flex items-center gap-2 text-sm font-semibold text-cds-foreground">
-        <i className="pi pi-exchange-alt text-sm text-cds-primary"></i>
-        Transferencias ({transfers.length})
-        <Tooltip
-          content={
-            <TooltipContent
-              title="Transferencias"
-              description="Movimientos de fondos entre categorías. Pueden ser automáticos (préstamos) o manuales."
-              example="Ahorro → Necesidad $20.000 cuando los gastos fijos superaron el presupuesto"
-            />
-          }
-        />
+    <div className="calm-card p-5 sm:p-6 space-y-3.5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs font-bold text-[#232B25] dark:text-white uppercase tracking-wider">
+          <i className="pi pi-exchange-alt text-[#D46743] text-xs"></i>
+          <span>Transferencias entre fondos ({transfers.length})</span>
+          <Tooltip
+            content={
+              <TooltipContent
+                title="Transferencias"
+                description="Movimientos de fondos entre categorías. Pueden ser automáticos (préstamos) o manuales."
+                example="Ahorro → Necesidad $20.000 cuando los gastos fijos superaron el presupuesto"
+              />
+            }
+          />
+        </div>
       </div>
 
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {transfers.map((transfer) => (
           <div
             key={transfer.id}
-            className="flex items-center justify-between gap-2 px-3 py-2 bg-cds-surface rounded-cds-sm border border-cds-border"
+            className="flex items-center justify-between gap-3 px-3.5 py-2.5 bg-[#FAF8F5] dark:bg-[#161C17] rounded-2xl border border-[#E8E2D8] dark:border-[#2A362D] transition-colors"
           >
             {editId === transfer.id ? (
               /* --- Edit Mode --- */
               <div className="flex items-center gap-2 w-full">
-                <span className="text-xs text-cds-foreground shrink-0">
+                <span className="text-xs font-medium text-[#232B25] dark:text-white shrink-0">
                   {CATEGORY_LABELS[transfer.from]} → {CATEGORY_LABELS[transfer.to]}
                 </span>
                 <Input
@@ -74,7 +76,7 @@ const TransferList = () => {
                   placeholder="150000"
                   className="w-28"
                 />
-                <div className="flex gap-1 shrink-0">
+                <div className="flex gap-1.5 shrink-0">
                   <Button size="sm" variant="ghost" onClick={() => saveEdit(transfer)}>
                     Guardar
                   </Button>
@@ -86,38 +88,40 @@ const TransferList = () => {
             ) : (
               /* --- Display Mode --- */
               <>
-                <div className="flex items-center gap-2 min-w-0">
-                  <i className="pi pi-exchange-alt text-[10px] text-cds-muted shrink-0"></i>
-                  <span className="text-xs text-cds-foreground truncate">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <i className="pi pi-arrow-right text-[10px] text-[#8A9A8E] shrink-0"></i>
+                  <span className="text-xs font-semibold text-[#232B25] dark:text-white truncate">
                     {CATEGORY_LABELS[transfer.from]} → {CATEGORY_LABELS[transfer.to]}
                   </span>
-                  <Chip color={transfer.isAutomatic ? 'warning' : 'primary'}>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                    transfer.isAutomatic
+                      ? 'bg-[#FDF5EC] text-[#C47535] dark:bg-[#2D1F13] dark:text-[#EFA66C] border border-[#F7D2AF] dark:border-[#56361D]'
+                      : 'bg-[#FCEEE9] text-[#D46743] dark:bg-[#301C15] dark:text-[#E28669] border border-[#F4C5B5] dark:border-[#5A2C1D]'
+                  }`}>
                     {transfer.isAutomatic ? 'Auto' : 'Manual'}
-                  </Chip>
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0">
-                  <span className="text-xs font-semibold text-cds-foreground tabular-nums">
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs font-bold font-mono text-[#232B25] dark:text-white tabular-nums">
                     ${transfer.amount.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                   </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    isIconOnly
+                  <button
+                    type="button"
                     onClick={() => startEdit(transfer)}
                     title="Editar monto"
-                    className="text-cds-muted hover:text-cds-foreground"
-                    startContent={<i className="pi pi-pencil"></i>}
-                  ></Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    isIconOnly
+                    className="w-7 h-7 flex items-center justify-center rounded-full text-[#8A9A8E] hover:text-[#232B25] dark:hover:text-white hover:bg-[#F4EFE8] dark:hover:bg-[#2A362D] transition-colors cursor-pointer"
+                  >
+                    <i className="pi pi-pencil text-[11px]"></i>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => removeTransferAndExpense(transfer.id)}
                     title="Eliminar transferencia"
-                    className="text-cds-muted hover:text-cds-negative"
-                    startContent={<i className="pi pi-trash"></i>}
-                  ></Button>
+                    className="w-7 h-7 flex items-center justify-center rounded-full text-[#8A9A8E] hover:text-[#B44C4C] hover:bg-[#B44C4C]/10 transition-colors cursor-pointer"
+                  >
+                    <i className="pi pi-trash text-[11px]"></i>
+                  </button>
                 </div>
               </>
             )}

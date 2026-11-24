@@ -45,7 +45,20 @@ export async function getRate(source: RateSource): Promise<DollarRate> {
   }
 }
 
+export function clearRateCache(): void {
+  for (const k of Object.keys(rateCache)) {
+    delete rateCache[k];
+  }
+}
+
 // Legacy alias
 export async function getOfficialRate(): Promise<DollarRate> {
   return getRate('oficial');
 }
+
+export function _clearRateCacheForTesting(): void {
+  for (const k of Object.keys(rateCache)) {
+    delete rateCache[k];
+  }
+}
+

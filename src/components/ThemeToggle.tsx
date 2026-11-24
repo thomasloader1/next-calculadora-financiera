@@ -12,7 +12,7 @@ export const ThemeToggle: React.FC = () => {
       size="sm"
       isIconOnly
       onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-      className="h-8 w-8 text-cds-muted dark:text-white hover:text-cds-foreground dark:hover:bg-cds-surface-dark"
+      className="h-8 w-8 text-notion-muted dark:text-white hover:text-notion-fg dark:hover:bg-notion-surface"
       aria-label="Toggle theme"
       startContent={<i className={`pi ${resolvedTheme === 'dark' ? 'pi-sun' : 'pi-moon'} text-sm`}></i>}
     >

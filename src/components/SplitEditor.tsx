@@ -1,27 +1,19 @@
 'use client';
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useExpenseContext } from '@/context/Expense/ExpenseContext';
 import { Tooltip, TooltipContent } from '@/components/ui/Tooltip';
-import { Toggle } from '@/components/ui/Toggle';
-import { Select } from '@/components/ui/Select';
 import { formatAmount } from '@/lib/formatAmount';
 import type { SplitPercentages } from '@/interfaces/Income';
 
 type CategoryKey = keyof SplitPercentages;
 
-const CATEGORIES: { key: CategoryKey; label: string; color: string }[] = [
-  { key: 'needs', label: 'Necesidad', color: 'bg-cds-primary' },
-  { key: 'wants', label: 'Imprevistos', color: 'bg-cds-negative' },
-  { key: 'savings', label: 'Ahorro', color: 'bg-cds-positive' },
+const CATEGORIES: { key: CategoryKey; label: string; color: string; bgSoft: string; textCol: string }[] = [
+  { key: 'needs', label: 'Necesidad', color: 'bg-[#D46743]', bgSoft: 'bg-[#FCEEE9] dark:bg-[#301C15]', textCol: 'text-[#D46743] dark:text-[#E28669]' },
+  { key: 'wants', label: 'Imprevistos', color: 'bg-[#E89B5B]', bgSoft: 'bg-[#FDF5EC] dark:bg-[#2D1F13]', textCol: 'text-[#C47535] dark:text-[#EFA66C]' },
+  { key: 'savings', label: 'Ahorro', color: 'bg-[#3DA6AD]', bgSoft: 'bg-[#EDF9FA] dark:bg-[#132426]', textCol: 'text-[#2A8187] dark:text-[#BFE7EA]' },
 ];
 
-const SPLIT_CHART_COLORS: Record<CategoryKey, string> = {
-  needs: 'bg-cds-primary',
-  wants: 'bg-cds-negative',
-  savings: 'bg-cds-positive',
-};
-
-/** Auto-adjust other categories when one changes: adjacent first, then fallback */
 function autoAdjust(
   changedKey: CategoryKey,
   newVal: number,
@@ -36,14 +28,13 @@ function autoAdjust(
     ...current,
     [changedKey]: clampedNewVal,
   };
-  const amount = Math.abs(delta); // total amount to shift between categories
-  const addToOthers = delta < 0;  // if we decreased a category, others must increase
+  const amount = Math.abs(delta);
+  const addToOthers = delta < 0;
 
-  // Determine adjustment order: adjacent first, then fallback
   const order: CategoryKey[] =
     changedKey === 'needs' ? ['wants', 'savings']
     : changedKey === 'savings' ? ['wants', 'needs']
-    : ['needs', 'savings']; // wants → both sides proportionally
+    : ['needs', 'savings'];
 
   let remaining = amount;
 
@@ -52,20 +43,18 @@ function autoAdjust(
     let take: number;
 
     if (changedKey === 'wants') {
-      // Proportional split between needs and savings
       const otherTotal = current.needs + current.savings;
       if (otherTotal === 0) {
         take = remaining;
       } else {
         take = addToOthers
-          ? remaining // when adding, just split remaining evenly across both
+          ? remaining
           : Math.min(remaining, Math.round((current[k] / otherTotal) * remaining * 100) / 100);
-        if (k === order[order.length - 1]) take = remaining; // flush rounding
+        if (k === order[order.length - 1]) take = remaining;
       }
     } else {
-      // Adjacent takes first, then fallback
       take = addToOthers
-        ? remaining // no cap — we're adding, not subtracting
+        ? remaining
         : Math.min(remaining, Math.max(0, current[k]));
     }
 
@@ -84,265 +73,262 @@ type Mode = 'global' | 'individual';
 const SplitEditor: React.FC = () => {
   const { globalSplit, setGlobalSplit, incomes, updateIncome } = useExpenseContext();
 
-  // ── Mode state ──
   const [mode, setMode] = useState<Mode>('global');
-  const [selectedIncomeId, setSelectedIncomeId] = useState<string>('');
-
-  // ── Split values ──
   const [values, setValues] = useState<SplitPercentages>({ ...globalSplit });
-  const [customMode, setCustomMode] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  // ── Refs for stale-closure safety ──
   const dirtyRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const valuesRef = useRef(values);
   valuesRef.current = values;
   const modeRef = useRef(mode);
   modeRef.current = mode;
-  const selectedIncomeIdRef = useRef(selectedIncomeId);
-  selectedIncomeIdRef.current = selectedIncomeId;
 
-  const total = useMemo(
-    () => values.needs + values.wants + values.savings,
-    [values],
-  );
-  const isValid = Math.abs(total - 100) < 0.01;
-
-  // Sync values when globalSplit changes from outside (global mode only)
   useEffect(() => {
     if (mode === 'global') {
       setValues({ ...globalSplit });
     }
   }, [globalSplit.needs, globalSplit.wants, globalSplit.savings, mode]);
 
-  // Cleanup debounce + flush on unmount
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      if (dirtyRef.current) {
-        const v = valuesRef.current;
-        if (Math.abs(v.needs + v.wants + v.savings - 100) < 0.01) {
-          if (modeRef.current === 'global') {
-            setGlobalSplit(v);
-          } else if (modeRef.current === 'individual' && selectedIncomeIdRef.current) {
-            updateIncome(selectedIncomeIdRef.current, { splitOverride: v });
-          }
-        }
-      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Flush dirty values immediately (used when switching incomes/mode) ──
-  const flushIfDirty = useCallback(() => {
+  const flushSave = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (dirtyRef.current && isValid) {
-      const v = valuesRef.current;
-      if (modeRef.current === 'global') {
-        setGlobalSplit(v);
-      } else if (modeRef.current === 'individual' && selectedIncomeIdRef.current) {
-        updateIncome(selectedIncomeIdRef.current, { splitOverride: v });
-      }
-      dirtyRef.current = false;
-    }
-  }, [isValid, setGlobalSplit, updateIncome]);
-
-  const doSave = (v: SplitPercentages) => {
-    if (Math.abs(v.needs + v.wants + v.savings - 100) >= 0.01) return;
-    if (modeRef.current === 'global') {
-      setGlobalSplit(v);
-    } else if (modeRef.current === 'individual' && selectedIncomeIdRef.current) {
-      updateIncome(selectedIncomeIdRef.current, { splitOverride: v });
-    }
+    if (!dirtyRef.current || modeRef.current !== 'global') return;
+    const v = valuesRef.current;
+    const currentTotal = v.needs + v.wants + v.savings;
+    if (Math.abs(currentTotal - 100) > 0.01) return;
     dirtyRef.current = false;
-  };
+    setGlobalSplit(v);
+  }, [setGlobalSplit]);
 
-  const scheduleSave = (v: SplitPercentages) => {
+  const scheduleSave = useCallback(() => {
     dirtyRef.current = true;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => doSave(v), 5000);
-  };
+    debounceRef.current = setTimeout(flushSave, 400);
+  }, [flushSave]);
 
-  const handleChange = (key: CategoryKey, rawValue: string) => {
-    const num = rawValue === '' ? 0 : Number(rawValue);
-    if (rawValue !== '' && (isNaN(num) || num < 0 || num > 100)) return;
+  const handleChange = useCallback((key: CategoryKey, newVal: number) => {
+    setValues(prev => {
+      const next = autoAdjust(key, newVal, prev);
+      valuesRef.current = next;
+      return next;
+    });
+    scheduleSave();
+  }, [scheduleSave]);
 
-    let newValues: SplitPercentages;
+  const handleIncomeSplitChange = useCallback((incomeId: string, key: CategoryKey, num: number) => {
+    const income = incomes.find(i => i.id === incomeId);
+    const current = income?.splitOverride ?? globalSplit;
+    const adjusted = autoAdjust(key, num, current);
+    updateIncome(incomeId, { splitOverride: adjusted });
+  }, [incomes, globalSplit, updateIncome]);
 
-    if (customMode) {
-      // Direct edit — only clamp
-      newValues = { ...values, [key]: Math.min(100, Math.max(0, Math.round(num))) };
-    } else {
-      // Smart auto-adjustment
-      newValues = autoAdjust(key, num, values);
-    }
-
-    setValues(newValues);
-    scheduleSave(newValues);
-  };
-
-  const handleBlur = () => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (dirtyRef.current && isValid) {
-      doSave(values);
-    }
-  };
-
-  // ── Income selector options ──
-  const incomeOptions = useMemo(
-    () =>
-      incomes.map((inc) => ({
-        key: inc.id,
-        label: `${inc.description} — ${formatAmount(inc.amount)}`,
-      })),
-    [incomes],
-  );
-
-  const selectedIncome = useMemo(
-    () => incomes.find((inc) => inc.id === selectedIncomeId) ?? null,
-    [incomes, selectedIncomeId],
-  );
-
-  const headerTitle =
-    mode === 'individual' && selectedIncome
-      ? `Split de ${selectedIncome.description}`
-      : 'Distribución del presupuesto';
-
-  // ── Toggle handler ──
-  const handleToggle = (checked: boolean) => {
-    if (checked) {
-      // Switching to individual mode
-      flushIfDirty();
-      setMode('individual');
-    } else {
-      // Switching back to global mode
-      flushIfDirty();
-      setSelectedIncomeId('');
-      setMode('global');
-      setValues({ ...globalSplit });
-      setCustomMode(false);
-    }
-  };
-
-  // ── Income selection handler ──
-  const handleIncomeChange = (id: string) => {
-    // Flush current edits to the previous income before switching
-    flushIfDirty();
-    setSelectedIncomeId(id);
-    if (id) {
-      const inc = incomes.find((i) => i.id === id);
-      if (inc) {
-        setValues(inc.splitOverride ? { ...inc.splitOverride } : { ...globalSplit });
-      }
-    }
-  };
-
-  // Disable per-income toggle when there's only 0 or 1 income
   const toggleDisabled = incomes.length < 2;
 
   return (
-    <div className="border border-cds-border rounded-cds-lg bg-cds-surface px-4 py-4 space-y-3">
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <p className="text-sm font-semibold text-cds-foreground">{headerTitle}</p>
-        <Tooltip
-          content={
-            <TooltipContent
-              title="Distribución del presupuesto"
-              description="Porcentaje de cada ingreso que se destina a cada categoría. Deben sumar 100%."
-              example="50% Necesidad · 30% Imprevistos · 20% Ahorro"
-            />
-          }
-        />
-      </div>
-
-      {/* Income amount in individual mode */}
-      {mode === 'individual' && selectedIncome && (
-        <p className="text-xs text-cds-muted">
-          Ingreso: {formatAmount(selectedIncome.amount)}
-          {selectedIncome.currency === 'USD' && ` (USD ${selectedIncome.originalAmount})`}
-        </p>
-      )}
-
-      {/* Global / Individual Toggle */}
-      <div className="flex items-center gap-2 pt-1">
-        <span className={`text-xs font-medium ${mode === 'global' ? 'text-cds-foreground' : 'text-cds-muted'}`}>
-          Global
-        </span>
-        <Toggle
-          checked={mode === 'individual'}
-          onChange={handleToggle}
-          disabled={toggleDisabled}
-          label="Por ingreso"
-        />
-      </div>
-
-      {/* Income selector (individual mode) */}
-      {mode === 'individual' && (
-        <Select
-          label="Ingreso"
-          value={selectedIncomeId}
-          onChange={handleIncomeChange}
-          options={incomeOptions}
-          placeholder="Seleccioná un ingreso"
-        />
-      )}
-
-      {/* Input grid */}
-      <div className="grid grid-cols-3 gap-2">
-        {CATEGORIES.map(({ key, label }) => (
-          <div key={key} className="flex flex-col gap-1">
-            <label className="text-[11px] text-cds-muted font-medium">{label}</label>
-            <input
-              type="number"
-              value={values[key]}
-              onChange={(e) => handleChange(key, e.target.value)}
-              onBlur={handleBlur}
-              className={`w-full bg-cds-canvas border rounded-cds-sm px-2.5 py-2 text-sm text-center tabular-nums outline-none transition-colors ${
-                !isValid
-                  ? 'border-cds-negative focus:shadow-[0_0_0_1px_var(--cds-negative)]'
-                  : 'border-cds-border focus:border-cds-primary focus:shadow-[0_0_0_1px_var(--cds-primary)]'
-              }`}
-              min={0}
-              max={100}
-              step={1}
+    <div className="calm-card transition-all overflow-hidden mb-6">
+      {/* Header bar / preview */}
+      <div className="p-5 sm:p-6 flex flex-col gap-3.5">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#5F6F63] dark:text-[#A3B4A5]">
+              Distribución de presupuesto
+            </span>
+            <Tooltip
+              content={
+                <TooltipContent
+                  title="Regla de Presupuesto 50/30/20"
+                  description="Porcentaje de tus ingresos destinado a cada fondo. La suma debe dar 100%."
+                  example="50% Necesidades · 30% Imprevistos/Deseos · 20% Ahorro"
+                />
+              }
             />
           </div>
-        ))}
-      </div>
 
-      {/* Footer: validation + custom mode */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <p className={`text-xs font-semibold ${isValid ? 'text-cds-positive' : 'text-cds-negative'}`}>
-            Suma: {total}%
-            {!isValid && ' — debe ser 100%'}
-          </p>
-          {dirtyRef.current && isValid && (
-            <span className="text-[10px] text-cds-muted italic">guardando...</span>
-          )}
+          <div className="flex items-center gap-2">
+            {!toggleDisabled && (
+              <div className="flex items-center bg-[#FFEAD3] dark:bg-[#261F1A] p-1 rounded-full text-xs font-medium border border-[#F0D7BC] dark:border-[#3A2E25]">
+                <button
+                  type="button"
+                  onClick={() => setMode('global')}
+                  className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
+                    mode === 'global' ? 'bg-[#D46743] text-white shadow-xs' : 'text-[#6B5547] hover:text-[#2C211B]'
+                  }`}
+                >
+                  Global
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('individual')}
+                  className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
+                    mode === 'individual' ? 'bg-[#D46743] text-white shadow-xs' : 'text-[#6B5547] hover:text-[#2C211B]'
+                  }`}
+                >
+                  Por ingreso
+                </button>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="text-xs font-semibold text-[#D46743] dark:text-[#E28669] hover:underline flex items-center gap-1 cursor-pointer pl-2"
+            >
+              <span>{isExpanded ? 'Ocultar ajuste' : 'Personalizar split'}</span>
+              <i className={`pi pi-chevron-down text-[10px] transition-transform ${isExpanded ? 'rotate-180' : ''}`}></i>
+            </button>
+          </div>
         </div>
-        <label className="flex items-center gap-1.5 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={customMode}
-            onChange={(e) => setCustomMode(e.target.checked)}
-            className="accent-cds-primary w-3 h-3"
-          />
-          <span className="text-[11px] text-cds-muted">Editar libre</span>
-        </label>
+
+        {/* Visual Segmented Progress Bar (Pill style) */}
+        <div className="space-y-2">
+          <div className="calm-progress-track h-3 flex overflow-hidden">
+            <div
+              style={{ width: `${values.needs}%` }}
+              className="bg-[#D46743] transition-all duration-300 relative"
+              title={`Necesidades: ${values.needs}%`}
+            />
+            <div
+              style={{ width: `${values.wants}%` }}
+              className="bg-[#E89B5B] transition-all duration-300 relative"
+              title={`Imprevistos: ${values.wants}%`}
+            />
+            <div
+              style={{ width: `${values.savings}%` }}
+              className="bg-[#3DA6AD] transition-all duration-300 relative"
+              title={`Ahorro: ${values.savings}%`}
+            />
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center justify-between text-xs font-mono font-medium pt-1 flex-wrap gap-2">
+            <div className="flex items-center gap-1.5 text-[#D46743] dark:text-[#E28669]">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#D46743] inline-block"></span>
+              <span>Necesidades ({values.needs}%)</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[#C47535] dark:text-[#EFA66C]">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#E89B5B] inline-block"></span>
+              <span>Imprevistos ({values.wants}%)</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[#2A8187] dark:text-[#BFE7EA]">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#3DA6AD] inline-block"></span>
+              <span>Ahorro ({values.savings}%)</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Visual bar — only in global mode */}
-      {mode === 'global' && (
-        <div className="flex h-2.5 rounded-full overflow-hidden bg-cds-border">
-          {CATEGORIES.map(({ key, color }) => (
-            <div
-              key={key}
-              className={`${color} transition-all duration-300`}
-              style={{ width: `${Math.max(0, values[key])}%` }}
-            />
-          ))}
+      {/* Expandable Editor Panel */}
+      {isExpanded && (
+        <div className="border-t border-[#F0D7BC] dark:border-[#3A2E25] bg-[#FFEAD3]/40 dark:bg-[#1A1410]/40 p-5 animate-in fade-in duration-200">
+          {mode === 'global' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {CATEGORIES.map(cat => (
+                <div
+                  key={cat.key}
+                  className="bg-white dark:bg-[#1E1814] border border-[#F0D7BC] dark:border-[#3A2E25] p-4 rounded-2xl shadow-xs flex flex-col gap-2.5"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#2C211B] dark:text-white">
+                      {cat.label}
+                    </span>
+                    <span className={`text-xs font-bold font-mono px-2.5 py-0.5 rounded-full ${cat.bgSoft} ${cat.textCol}`}>
+                      {values[cat.key]}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={values[cat.key]}
+                    onChange={e => handleChange(cat.key, Number(e.target.value))}
+                    className="w-full h-2 bg-[#FFEAD3] dark:bg-[#2E2218] rounded-lg appearance-none cursor-pointer accent-[#D46743]"
+                  />
+                  <div className="flex items-center justify-between pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleChange(cat.key, Math.max(0, values[cat.key] - 5))}
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-[#FFEAD3] dark:bg-[#2E2218] text-[#2C211B] dark:text-white hover:bg-[#F0D7BC] font-bold text-xs cursor-pointer"
+                    >
+                      -5
+                    </button>
+                    <span className="text-[11px] text-[#9E8575] font-mono">auto-ajustable</span>
+                    <button
+                      type="button"
+                      onClick={() => handleChange(cat.key, Math.min(100, values[cat.key] + 5))}
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-[#FFEAD3] dark:bg-[#2E2218] text-[#2C211B] dark:text-white hover:bg-[#F0D7BC] font-bold text-xs cursor-pointer"
+                    >
+                      +5
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-[#F0D7BC] dark:border-[#3A2E25] bg-white dark:bg-[#1E1814]">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#FFEAD3] dark:bg-[#261F1A] border-b border-[#F0D7BC] dark:border-[#3A2E25] text-[#6B5547] font-bold uppercase tracking-wider text-[11px]">
+                  <tr>
+                    <th className="p-3.5">Ingreso</th>
+                    <th className="p-3.5">Monto</th>
+                    <th className="p-3.5 text-[#D46743]">Necesidades %</th>
+                    <th className="p-3.5 text-[#C47535]">Imprevistos %</th>
+                    <th className="p-3.5 text-[#2A8187]">Ahorro %</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E8E2D8] dark:divide-[#2A362D]">
+                  {incomes.map(inc => {
+                    const incSplit = inc.splitOverride || globalSplit;
+                    return (
+                      <tr key={inc.id} className="hover:bg-[#F4EFE8]/50 dark:hover:bg-[#253227]/40 transition-colors">
+                        <td className="p-3.5 font-bold text-[#232B25] dark:text-white">
+                          {inc.description}
+                        </td>
+                        <td className="p-3.5 font-mono text-[#5F6F63] dark:text-[#A3B4A5]">
+                          {formatAmount(inc.amount)}
+                        </td>
+                        <td className="p-3.5">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={incSplit.needs}
+                            onChange={e => handleIncomeSplitChange(inc.id, 'needs', Number(e.target.value))}
+                            className="w-16 px-2.5 py-1.5 bg-[#F4EFE8] dark:bg-[#253227] border border-[#E8E2D8] dark:border-[#2A362D] rounded-xl font-mono text-center"
+                          />
+                        </td>
+                        <td className="p-3.5">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={incSplit.wants}
+                            onChange={e => handleIncomeSplitChange(inc.id, 'wants', Number(e.target.value))}
+                            className="w-16 px-2.5 py-1.5 bg-[#F4EFE8] dark:bg-[#253227] border border-[#E8E2D8] dark:border-[#2A362D] rounded-xl font-mono text-center"
+                          />
+                        </td>
+                        <td className="p-3.5">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={incSplit.savings}
+                            onChange={e => handleIncomeSplitChange(inc.id, 'savings', Number(e.target.value))}
+                            className="w-16 px-2.5 py-1.5 bg-[#F4EFE8] dark:bg-[#253227] border border-[#E8E2D8] dark:border-[#2A362D] rounded-xl font-mono text-center"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

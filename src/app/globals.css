@@ -2,141 +2,294 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Coinbase Design System Tokens */
+/* CALM / KIT Design System (Interface Study) - Palette: FFEAD3, BFE7EA, E89B5B, D46743 */
 :root {
-  --cds-primary: #0052ff;
-  --cds-primary-hover: #578bfa;
-  --cds-canvas: #ffffff;
-  --cds-dark: #1f1f1f;
-  --cds-foreground: #000;
-  --cds-muted: #5b616e;
-  --cds-surface: #eef0f3;
-  --cds-surface-dark: #282828;
-  --cds-on-primary: #ffffff;
-  --cds-positive: #05b169;
-  --cds-negative: #cf202f;
-  --cds-border: rgba(91,97,110,0.2);
+  /* User-Defined Palette Tokens */
+  --palette-cream: #FFEAD3;       /* Warm apricot cream */
+  --palette-aqua: #BFE7EA;        /* Refreshing soft aqua */
+  --palette-amber: #E89B5B;       /* Warm terracotta ochre */
+  --palette-rust: #D46743;        /* Deep burnt rust / clay */
+  --palette-rust-hover: #BF5835;
+  --palette-rust-active: #A94726;
 
-  --cds-radius-sm: 8px;
-  --cds-radius-md: 16px;
-  --cds-radius-lg: 24px;
-  --cds-radius-pill: 100px;
-  --cds-radius-full: 9999px;
+  /* Canvas & Warm Organic Surfaces */
+  --calm-bg: #FAF6F0;             /* Warm soft linen canvas */
+  --calm-surface: #FFFFFF;        /* Crisp pillowy white surface */
+  --calm-surface-warm: #FFF5EA;   /* Cream warm surface */
+  --calm-surface-inset: #FFEAD3;  /* Inset / pill background */
 
-  --cds-font-body: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --cds-font-mono: ui-monospace, SF Mono, JetBrains Mono, Menlo, Monaco, Consolas, monospace;
+  /* Semantic Role Mapping */
+  --calm-sage: #D46743;           /* Primary Accent: Rust */
+  --calm-sage-hover: #BF5835;     /* Darker Rust */
+  --calm-sage-active: #A94726;
+  --calm-moss: #E89B5B;           /* Secondary: Amber */
+  --calm-mist: #BFE7EA;           /* Accent: Aqua */
+  --calm-mist-bg: #EDF9FA;        /* Notification / banner tint */
+  --calm-ivory: #FFEAD3;          /* Inset Cream */
+  --calm-sand: #E89B5B;           /* Warm Sand/Amber */
 
-  --foreground-rgb: 10, 11, 13;
-  --background-rgb: 255, 255, 255;
+  /* Text & Typography Hierarchy */
+  --calm-fg: #2C211B;             /* Deep warm espresso/charcoal */
+  --calm-fg-muted: #6B5547;       /* Muted warm earth */
+  --calm-fg-subtle: #9E8575;      /* Subtle labels */
+
+  /* Borders */
+  --calm-border: #F0D7BC;         /* Soft cream border */
+  --calm-border-soft: #F9E7D4;
+
+  /* Semantic Alerts */
+  --calm-success: #2A8187;
+  --calm-warn: #E89B5B;
+  --calm-danger: #D46743;
+
+  /* Radii */
+  --calm-radius-sm: 12px;
+  --calm-radius-md: 18px;
+  --calm-radius-lg: 26px;
+  --calm-radius-xl: 34px;
+  --calm-radius-pill: 9999px;
+
+  /* Shadows (Soft Pillowy Diffused Elevation) */
+  --calm-shadow: 0 4px 20px -2px rgba(110, 70, 45, 0.06), 0 2px 6px -1px rgba(110, 70, 45, 0.03);
+  --calm-shadow-hover: 0 8px 30px -4px rgba(110, 70, 45, 0.1), 0 4px 10px -2px rgba(110, 70, 45, 0.05);
+
+  /* Touch Target minimum size */
+  --touch-target: 44px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-rgb: 10, 11, 13;
-  }
+.dark {
+  --palette-cream: #2E2218;
+  --palette-aqua: #1E373A;
+  --palette-amber: #E89B5B;
+  --palette-rust: #DF7654;
+  --palette-rust-hover: #E98666;
+  --palette-rust-active: #CA6444;
+
+  --calm-bg: #15110E;             /* Deep warm espresso black */
+  --calm-surface: #1E1814;        /* Dark espresso surface */
+  --calm-surface-warm: #261F1A;   /* Dark warm surface */
+  --calm-surface-inset: #1A1410;  /* Dark inset */
+
+  --calm-sage: #DF7654;           /* Rust in dark mode */
+  --calm-sage-hover: #E98666;
+  --calm-sage-active: #CA6444;
+  --calm-moss: #EFA66C;           /* Amber in dark mode */
+  --calm-mist: #BFE7EA;           /* Aqua in dark mode */
+  --calm-mist-bg: #132426;
+  --calm-ivory: #2A211B;
+  --calm-sand: #3D2D24;
+
+  --calm-fg: #FDF6F0;
+  --calm-fg-muted: #C4B1A3;
+  --calm-fg-subtle: #8E7A6E;
+
+  --calm-border: #3A2E25;
+  --calm-border-soft: #2B2119;
+
+  --calm-shadow: 0 4px 25px rgba(0, 0, 0, 0.5);
 }
 
-/* Base */
+/* Base Body */
 body {
   min-height: 100vh;
-  min-width: 320px;
-  max-width: 1920px;
-  background-color: var(--cds-canvas);
-  color: var(--cds-foreground);
-  font-family: var(--cds-font-body);
+  background-color: var(--calm-bg);
+  color: var(--calm-fg);
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-wrap: anywhere;
+  /* Safe area padding */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Typography */
-h1, h2, h3, h4, h5, h6 {
-  font-weight: 400;
+/* Headings balance per modern-web-guidance */
+h1, h2, h3, h4 {
+  text-wrap: balance;
   letter-spacing: -0.02em;
 }
 
-/* Numbers — tabular alignment for financial data */
+p {
+  text-wrap: pretty;
+}
+
+/* Tabular figures for numbers */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
 
-/* CDS Button styles */
-.cds-btn-primary {
-  background-color: var(--cds-primary);
-  color: var(--cds-on-primary);
-  border-radius: var(--cds-radius-pill);
-  padding: 12px 20px;
-  height: 44px;
+/* Minimum 44px touch targets on touch screens */
+@media (pointer: coarse) {
+  button, select, input:not([type="checkbox"], [type="radio"]), [role="button"], a {
+    min-block-size: var(--touch-target);
+  }
+}
+
+/* ── CALM / KIT Component Classes ── */
+
+/* Card: Soft Pillowy Elevation (Item 06 in study) */
+.calm-card {
+  background-color: var(--calm-surface);
+  border: 1px solid var(--calm-border);
+  border-radius: var(--calm-radius-xl);
+  box-shadow: var(--calm-shadow);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.calm-card-subtle {
+  background-color: var(--calm-surface-warm);
+  border: 1px solid var(--calm-border-soft);
+  border-radius: var(--calm-radius-lg);
+}
+
+/* Primary Button: Rust Pill (Item 03 in study) */
+.calm-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: var(--calm-sage);
+  color: #FFFFFF;
+  border-radius: var(--calm-radius-pill);
+  padding: 10px 22px;
   font-weight: 600;
-  font-size: 16px;
-  transition: background-color 150ms ease;
-  border: none;
+  font-size: 14px;
+  border: 1px solid transparent;
+  box-shadow: 0 2px 10px rgba(212, 103, 67, 0.25);
+  transition: all 0.15s ease-out;
   cursor: pointer;
+  white-space: nowrap;
 }
 
-.cds-btn-primary:hover {
-  background-color: var(--cds-primary-hover);
+.calm-btn-primary:hover {
+  background-color: var(--calm-sage-hover);
+  box-shadow: 0 4px 14px rgba(212, 103, 67, 0.35);
 }
 
-.cds-btn-primary:disabled {
+.calm-btn-primary:active {
+  transform: scale(0.98);
+}
+
+.calm-btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
-/* CDS Card styles */
-.cds-card {
-  background-color: var(--cds-canvas);
-  border-radius: var(--cds-radius-lg);
-  border: 1px solid var(--cds-border);
-  overflow: hidden;
+/* Secondary Button: Cream Pill with Hairline Border (Item 03 in study) */
+.calm-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: var(--calm-surface-warm);
+  color: var(--calm-fg);
+  border: 1px solid var(--calm-border);
+  border-radius: var(--calm-radius-pill);
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.15s ease-out;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
-/* CDS Input styles */
-.cds-input {
-  border-radius: var(--cds-radius-sm);
-  border: 1px solid var(--cds-border);
-  padding: 12px 16px;
-  font-size: 16px;
-  transition: border-color 150ms ease;
+.calm-btn-secondary:hover {
+  background-color: var(--calm-surface);
+  border-color: var(--calm-moss);
 }
 
-.cds-input:focus {
+.calm-btn-secondary:active {
+  transform: scale(0.98);
+}
+
+/* Input: Inset Pill / High Radius (Item 04 in study) */
+.calm-input {
+  width: 100%;
+  background-color: var(--calm-surface-warm);
+  color: var(--calm-fg);
+  border: 1px solid var(--calm-border);
+  border-radius: var(--calm-radius-pill);
+  padding: 10px 18px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.15s ease-out;
+}
+
+.calm-input::placeholder {
+  color: var(--calm-fg-subtle);
+}
+
+.calm-input:focus {
   outline: none;
-  border-color: var(--cds-primary);
-  box-shadow: 0 0 0 2px rgba(0, 82, 255, 0.15);
+  background-color: var(--calm-surface);
+  border-color: var(--calm-sage);
+  box-shadow: 0 0 0 3px rgba(212, 103, 67, 0.2);
 }
 
-/* Dark section */
-.cds-dark-section {
-  background-color: var(--cds-dark);
-  color: var(--cds-canvas);
+/* Segmented Tabs (Item 09 in study) */
+.calm-segmented-container {
+  display: flex;
+  background-color: var(--calm-surface-warm);
+  padding: 4px;
+  border-radius: var(--calm-radius-pill);
+  border: 1px solid var(--calm-border-soft);
 }
 
-/* Dark Mode */
-.dark {
-  --cds-canvas: #0a0c10;
-  --cds-foreground: #e8eaed;
-  --cds-muted: #717680;
-  --cds-surface: #16191f;
-  --cds-surface-dark: #0c0e13;
-  --cds-border: rgba(255,255,255,0.10);
+.calm-segmented-tab {
+  flex: 1;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--calm-radius-pill);
+  color: var(--calm-fg-muted);
+  transition: all 0.15s ease-out;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
 }
 
-/* Responsive */
-@media (min-width: 768px) {
-  body {
-    min-width: 600px;
-  }
+.calm-segmented-tab-active {
+  background-color: var(--calm-sage);
+  color: #FFFFFF !important;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(212, 103, 67, 0.25);
 }
 
-@media (min-width: 1024px) {
-  body {
-    min-width: 900px;
-  }
+/* Progress Bar (Item 07 in study) */
+.calm-progress-track {
+  width: 100%;
+  background-color: var(--calm-surface-inset);
+  border-radius: var(--calm-radius-pill);
+  overflow: hidden;
+  height: 10px;
 }
 
-@media (min-width: 1200px) {
-  body {
-    min-width: 1000px;
-  }
+.calm-progress-fill {
+  background-color: var(--calm-sage);
+  border-radius: var(--calm-radius-pill);
+  height: 100%;
+  transition: width 0.3s ease-out;
 }
+
+/* Notification Pill / Banner (Item 08 in study) */
+.calm-notification {
+  background-color: var(--calm-mist-bg);
+  border: 1px solid var(--calm-mist);
+  border-radius: var(--calm-radius-lg);
+  padding: 12px 18px;
+  color: var(--calm-fg);
+}
+
+/* Compatibility aliases for previous notion-* classes */
+.notion-bg { background-color: var(--calm-bg); }
+.notion-card { background-color: var(--calm-surface); border: 1px solid var(--calm-border); border-radius: var(--calm-radius-xl); box-shadow: var(--calm-shadow); }
+.notion-btn-primary { @apply calm-btn-primary; }
+.notion-btn-secondary { @apply calm-btn-secondary; }
+.notion-btn-ghost { color: var(--calm-fg-muted); border-radius: var(--calm-radius-pill); padding: 8px 14px; font-weight: 500; font-size: 13px; transition: all 0.15s; }
+.notion-btn-ghost:hover { background-color: var(--calm-surface-warm); color: var(--calm-fg); }
+.notion-btn-danger { background-color: var(--calm-danger); color: #fff; border-radius: var(--calm-radius-pill); padding: 8px 16px; font-weight: 600; }
+.notion-input { @apply calm-input; }

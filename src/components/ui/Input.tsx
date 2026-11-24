@@ -1,5 +1,5 @@
-import React from 'react';
-import { InputText } from 'primereact/inputtext';
+'use client';
+import React, { forwardRef } from 'react';
 
 interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'prefix'> {
   label?: string;
@@ -13,52 +13,60 @@ interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, '
   className?: string;
 }
 
-export const Input: React.FC<InputProps> = ({
-  label,
-  value,
-  onChange,
-  onClear,
-  placeholder,
-  prefix,
-  description,
-  type = 'text',
-  className = '',
-  ...rest
-}) => {
-  return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
-      {label && (
-        <label className="text-sm text-cds-muted font-normal">{label}</label>
-      )}
-      <div className="flex items-center">
-        {prefix && (
-          <span className="pointer-events-none flex items-center pl-3 text-cds-muted text-sm">
-            {prefix}
-          </span>
+export const Input = forwardRef<HTMLInputElement, InputProps>(
+  (
+    {
+      label,
+      value,
+      onChange,
+      onClear,
+      placeholder,
+      prefix,
+      description,
+      type = 'text',
+      className = '',
+      ...rest
+    },
+    ref
+  ) => {
+    return (
+      <div className={`flex flex-col gap-1.5 ${className}`}>
+        {label && (
+          <label className="text-xs font-semibold text-[#6B5547] dark:text-[#C4B1A3]">{label}</label>
         )}
-        <div className="relative flex-1">
-          <InputText
-            type={type}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-            className="w-full"
-            {...rest}
-          />
-          {onClear && value !== '' && (
-            <button
-              type="button"
-              onClick={onClear}
-              className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 text-cds-muted hover:text-cds-foreground transition-colors"
-            >
-              ×
-            </button>
+        <div className="flex items-center">
+          {prefix && (
+            <span className="pointer-events-none flex items-center pl-3.5 text-sm text-[#9E8575]">
+              {prefix}
+            </span>
           )}
+          <div className="relative flex-1">
+            <input
+              ref={ref}
+              type={type}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={placeholder}
+              className="calm-input"
+              {...rest}
+            />
+            {onClear && value !== '' && (
+              <button
+                type="button"
+                onClick={onClear}
+                className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 text-[#9E8575] hover:text-[#2C211B] dark:hover:text-white transition-colors cursor-pointer"
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
+        {description && (
+          <p className="notion-body-sm text-notion-meta">{description}</p>
+        )}
       </div>
-      {description && (
-        <p className="text-cds-muted text-xs">{description}</p>
-      )}
-    </div>
-  );
-};
+    );
+  }
+);
+
+Input.displayName = 'Input';

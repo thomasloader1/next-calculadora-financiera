@@ -278,8 +278,8 @@ describe('recalculateCashFromScratch', () => {
     };
     const { cash, autoLoans } = recalculateCashFromScratch(incomes, [], expenses, DEFAULT_SPLIT);
     expect(cash.needs).toBe(0);     // fully covered by auto-loan
-    expect(cash.wants).toBe(30);    // unchanged (savings has 20, wants has 30 — wants is highest)
-    expect(cash.savings).toBe(10);  // 20 - 10 borrowed = 10
+    expect(cash.wants).toBe(20);    // 30 - 10 borrowed = 20 (wants is highest surplus)
+    expect(cash.savings).toBe(20);  // unchanged at 20
     expect(autoLoans).toHaveLength(1);
     expect(autoLoans[0].from).toBe('wants'); // highest surplus (30 > 20)
     expect(autoLoans[0].to).toBe('needs');

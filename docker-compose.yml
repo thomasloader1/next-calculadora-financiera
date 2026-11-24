@@ -1,0 +1,25 @@
+services:
+  calculadora:
+    container_name: next-calculadora-financiera
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    tty: true
+    stdin_open: true
+    ports:
+      - "${PORT:-3002}:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    env_file:
+      - .env.local
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - TURBOPACK_FORCE_POLLING=true
+    command: npm run dev

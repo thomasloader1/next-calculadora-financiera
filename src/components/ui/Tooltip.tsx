@@ -50,14 +50,14 @@ const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
       onMouseLeave={() => setIsVisible(false)}
     >
       {children || (
-        <button className="text-cds-muted hover:text-cds-primary transition-colors">
+        <button className="text-notion-muted hover:text-notion-accent transition-colors">
           <i className="pi pi-info-circle text-sm"></i>
         </button>
       )}
       {isVisible && (
         <div
           ref={tooltipRef}
-          className={`absolute z-50 left-1/2 -translate-x-1/2 w-72 p-3 bg-cds-dark text-cds-canvas text-xs leading-relaxed rounded-cds-md shadow-xl pointer-events-none ${
+          className={`absolute z-50 left-1/2 -translate-x-1/2 w-72 p-3 bg-notion-fg-2 text-notion-bg text-xs leading-relaxed rounded-notion-md shadow-xl pointer-events-none ${
             direction === 'top'
               ? 'bottom-full mb-2'
               : 'top-full mt-2'
@@ -68,8 +68,8 @@ const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
           <div
             className={`absolute left-1/2 -translate-x-1/2 w-0 h-0 ${
               direction === 'top'
-                ? 'top-full border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-cds-dark'
-                : 'bottom-full border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-cds-dark'
+                ? 'top-full border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-notion-fg-2'
+                : 'bottom-full border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-notion-fg-2'
             }`}
           />
         </div>

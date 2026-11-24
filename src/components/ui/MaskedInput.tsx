@@ -29,11 +29,11 @@ export const MaskedInput: React.FC<MaskedInputProps> = ({
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       {label && (
-        <label className="text-sm text-cds-muted font-normal">{label}</label>
+        <label className="text-sm text-notion-muted font-normal">{label}</label>
       )}
       <div className="flex items-center">
         {prefix && (
-          <span className="pointer-events-none flex items-center pl-3 text-cds-muted text-sm">
+          <span className="pointer-events-none flex items-center pl-3 text-notion-muted text-sm">
             {prefix}
           </span>
         )}
@@ -51,7 +51,7 @@ export const MaskedInput: React.FC<MaskedInputProps> = ({
             <button
               type="button"
               onClick={onClear}
-              className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 text-cds-muted hover:text-cds-foreground transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 text-notion-muted hover:text-notion-fg transition-colors"
             >
               ×
             </button>
@@ -59,7 +59,7 @@ export const MaskedInput: React.FC<MaskedInputProps> = ({
         </div>
       </div>
       {description && (
-        <p className="text-cds-muted text-xs">{description}</p>
+        <p className="text-notion-muted text-xs">{description}</p>
       )}
     </div>
   );

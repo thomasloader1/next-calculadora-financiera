@@ -1,6 +1,8 @@
 'use client';
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
-import { getFirebaseAuthAsync, getCurrentUserId, setFirebaseUserUid, ensureUserDocument } from '@/Services/firebase';
+import { getFirebaseAuthAsync, getCurrentUserId, setFirebaseUserUid, ensureUserDocument, migrateAnonymousDataToUser, clearLocalCache, isFirebaseConfigured } from '@/Services/firebase';
+import { getAuthErrorMessage } from './authErrors';
+import { toast } from 'sonner';
 
 type User = {
   uid: string;
@@ -13,6 +15,8 @@ type User = {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  /** False when Firebase env vars are missing: only local mode is available */
+  cloudAvailable: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -70,29 +74,50 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       try {
-        const { onAuthStateChanged } = await import('firebase/auth');
+        const { onAuthStateChanged, getRedirectResult, setPersistence, browserLocalPersistence } = await import('firebase/auth');
 
-        unsubscribe = onAuthStateChanged(auth, (fbUser: any) => {
+        await setPersistence(auth, browserLocalPersistence).catch((err: any) =>
+          console.warn('Could not set auth persistence:', err));
+
+        // Surface errors from a signInWithRedirect flow (mobile)
+        getRedirectResult(auth).catch((err: any) => {
+          const msg = getAuthErrorMessage(err?.code);
+          if (msg) toast.error(msg);
+        });
+
+        unsubscribe = onAuthStateChanged(auth, async (fbUser: any) => {
           if (fbUser) {
-            const localUser: User = {
+            setFirebaseUserUid(fbUser.uid);
+            // Sequential on purpose: the user doc must exist before merging anonymous
+            // months into it, and both must finish before ExpenseContext loads this uid.
+            try {
+              await ensureUserDocument(fbUser.uid, {
+                email: fbUser.email,
+                displayName: fbUser.displayName,
+                photoURL: fbUser.photoURL,
+              });
+            } catch (err) {
+              console.warn('Error ensuring user doc:', err);
+            }
+            try {
+              const migrated = await migrateAnonymousDataToUser(fbUser.uid);
+              if (migrated > 0) {
+                toast.success(`Se sincronizaron ${migrated} mes(es) con tu cuenta de Google.`);
+              }
+            } catch (err) {
+              console.warn('Error migrating anonymous data:', err);
+            }
+            setUser({
               uid: fbUser.uid,
               displayName: fbUser.displayName,
               email: fbUser.email,
               photoURL: fbUser.photoURL,
               isAnonymous: fbUser.isAnonymous || false,
-            };
-            setUser(localUser);
-            setFirebaseUserUid(fbUser.uid);
-            // Create/update user document in financeCalculator
-            ensureUserDocument(fbUser.uid, {
-              email: fbUser.email,
-              displayName: fbUser.displayName,
-              photoURL: fbUser.photoURL,
-            }).catch((err: any) => console.warn('Error ensuring user doc:', err));
+            });
           } else {
             // No Firebase user — use local anonymous
-            setUser(getLocalUser());
             setFirebaseUserUid(null);
+            setUser(getLocalUser());
           }
           setLoading(false);
         });
@@ -110,11 +135,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const loginWithGoogle = async () => {
     const auth = await getFirebaseAuthAsync();
-    if (!auth) return;
+    if (!auth) {
+      toast.error('El inicio de sesión con Google no está configurado.');
+      return;
+    }
 
     try {
       const { signInWithPopup, signInWithRedirect, GoogleAuthProvider } = await import('firebase/auth');
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
 
       if (isMobile()) {
         await signInWithRedirect(auth, provider);
@@ -131,8 +160,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
     } catch (error: any) {
-      console.error("Error al autenticar con Google:", error);
-      // App still works with local user — no need to alert the user
+      console.error('Error al autenticar con Google:', error);
+      const msg = getAuthErrorMessage(error?.code);
+      if (msg) toast.error(msg);
     }
   };
 
@@ -142,15 +172,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     try {
       const { signOut } = await import('firebase/auth');
+      const uid = auth.currentUser?.uid as string | undefined;
       await signOut(auth);
-      // After sign out, user falls back to local anonymous
+      // Don't leave the account's cached data on this device
+      if (uid) clearLocalCache(uid);
+      toast.success('Sesión cerrada. Seguís en modo local.');
     } catch (error) {
-      console.error("Error al cerrar sesión:", error);
+      console.error('Error al cerrar sesión:', error);
+      toast.error('No se pudo cerrar la sesión.');
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, cloudAvailable: isFirebaseConfigured(), loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

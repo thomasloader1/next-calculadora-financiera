@@ -1,11 +1,12 @@
 import { CashState } from '@/interfaces/Cash';
-import { Expense, ExpenseContextType, ExpenseCategory } from '@/interfaces/Expense';
+import { Expense, ExpenseContextType, ExpenseCategory, MonthBudget } from '@/interfaces/Expense';
 import { Income, SplitPercentages } from '@/interfaces/Income';
 import { Transfer, CategoryKey } from '@/interfaces/Transfer';
 import { createManualTransfer, recalculateCashFromScratch } from '@/lib/budgetCalculator';
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { useAuthContext } from '@/context/Auth/AuthContext';
 import { saveMonthBudget, loadMonthBudget, getUserMonths } from '@/Services/firebase';
+import { canAutoSave } from './sessionGuard';
 import { toast } from 'sonner';
 
 const ExpenseContext = createContext<ExpenseContextType | undefined>(undefined);
@@ -57,60 +58,98 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
     latestStateRef.current = { needs, wants, savings, transfers };
   }, [needs, wants, savings, transfers]);
 
-  // Fetch saved months on mount and when user changes
+  // uid whose data is currently loaded in memory; auto-save is blocked until it matches
+  const hydratedUidRef = useRef<string | null>(null);
+
+  const resetSessionState = useCallback(() => {
+    setNeeds([]);
+    setWants([]);
+    setSavings([]);
+    setIncomes([]);
+    setTransfers([]);
+    setCash(null);
+    setGlobalSplitState(DEFAULT_SPLIT);
+    setCurrentMonth(getCurrentMonth());
+  }, []);
+
+  /** Loads a stored month into state (recalculating cash for v2+ data). */
+  const applyBudget = useCallback((month: string, data: MonthBudget) => {
+    setCash(data.cash);
+    setNeeds(data.needs);
+    setWants(data.wants);
+    setSavings(data.savings);
+    setCurrentMonth(month);
+    setIncomes(data.incomes || []);
+    setTransfers(data.transfers || []);
+    setGlobalSplitState(data.globalSplit || DEFAULT_SPLIT);
+    if (!data.schemaVersion || data.schemaVersion >= 2) {
+      const expenses = { needs: data.needs, wants: data.wants, savings: data.savings };
+      const { cash: newCash, autoLoans } = recalculateCashFromScratch(
+        data.incomes || [],
+        data.transfers || [],
+        expenses,
+        data.globalSplit || DEFAULT_SPLIT
+      );
+      setCash(newCash);
+      setTransfers(prev => {
+        const manual = prev.filter(t => !t.isAutomatic);
+        return [...manual, ...autoLoans];
+      });
+    }
+  }, []);
+
+  // Fetch saved months on mount and when the user (uid) changes.
+  // On every uid switch (login / logout) we drop the in-memory state of the previous
+  // uid and block auto-save until the new uid's data has been hydrated; otherwise the
+  // previous session's data would be written under the new uid (overwriting cloud data).
+  const uid = user?.uid ?? null;
   useEffect(() => {
-    if (!user) {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    hydratedUidRef.current = null;
+    resetSessionState();
+
+    if (!uid) {
       setSavedMonths([]);
       setIsInitialLoading(false);
       return;
     }
 
+    let cancelled = false;
     setIsInitialLoading(true);
 
-    getUserMonths(user.uid)
+    getUserMonths(uid)
       .then(months => {
+        if (cancelled) return;
         setSavedMonths(months);
         const current = getCurrentMonth();
         if (!months.includes(current)) return;
-        return loadMonthBudget(user.uid, current).then(data => {
-          if (!data) return;
-          setCash(data.cash);
-          setNeeds(data.needs);
-          setWants(data.wants);
-          setSavings(data.savings);
-          setCurrentMonth(current);
-          setIncomes(data.incomes || []);
-          setTransfers(data.transfers || []);
-          setGlobalSplitState(data.globalSplit || DEFAULT_SPLIT);
-          // v2+ data: recalculate cash from scratch using loaded data
-          if (!data.schemaVersion || data.schemaVersion >= 2) {
-            const expenses = { needs: data.needs, wants: data.wants, savings: data.savings };
-            const { cash: newCash, autoLoans } = recalculateCashFromScratch(
-              data.incomes || [],
-              data.transfers || [],
-              expenses,
-              data.globalSplit || DEFAULT_SPLIT
-            );
-            setCash(newCash);
-            setTransfers(prev => {
-              const manual = prev.filter(t => !t.isAutomatic);
-              return [...manual, ...autoLoans];
-            });
-          }
+        return loadMonthBudget(uid, current).then(data => {
+          if (cancelled || !data) return;
+          applyBudget(current, data);
         });
       })
-      .catch(() => {})
-      .finally(() => setIsInitialLoading(false));
-  }, [user]);
+      .catch(err => console.warn('Error loading user data:', err))
+      .finally(() => {
+        if (cancelled) return;
+        hydratedUidRef.current = uid;
+        setIsInitialLoading(false);
+      });
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid]);
 
   // Auto-save: debounced 300ms after any mutation to needs/wants/savings/incomes/transfers/cash
   useEffect(() => {
     if (!user || !cash) return;
+    if (!canAutoSave(hydratedUidRef.current, user.uid)) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    const saveUid = user.uid;
     saveTimerRef.current = setTimeout(async () => {
+      if (!canAutoSave(hydratedUidRef.current, saveUid)) return;
       setIsSaving(true);
       try {
-        await saveMonthBudget(user.uid, currentMonth, {
+        await saveMonthBudget(saveUid, currentMonth, {
           totalAmount: cash.needs + cash.wants + cash.savings,
           cash,
           needs,
@@ -123,7 +162,7 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
           updatedAt: new Date().toISOString(),
         });
         // Refresh saved months list after save (silently ignore permission errors)
-        getUserMonths(user.uid).then(setSavedMonths).catch(() => {});
+        getUserMonths(saveUid).then(setSavedMonths).catch(() => {});
       } catch (error: any) {
         console.error('Auto-save error:', error);
         // Silently ignore permission errors (rules not deployed yet)
@@ -220,16 +259,30 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
       ...income,
       id: `inc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     };
-    setIncomes(prev => [...prev, newIncome]);
-  }, []);
+    setIncomes(prev => {
+      const updated = [...prev, newIncome];
+      const { needs, wants, savings, transfers } = latestStateRef.current;
+      const { cash: newCash, autoLoans } = recalculateCashFromScratch(
+        updated,
+        transfers,
+        { needs, wants, savings },
+        globalSplit
+      );
+      setCash(newCash);
+      setTransfers(prevTransfers => {
+        const manualTransfers = prevTransfers.filter(t => !t.isAutomatic);
+        return [...manualTransfers, ...autoLoans];
+      });
+      return updated;
+    });
+  }, [globalSplit]);
 
   const updateIncome = useCallback((id: string, updates: Partial<Income>) => {
     setIncomes(prev => {
       const updated = prev.map(inc => inc.id === id ? { ...inc, ...updates } : inc);
       const { needs, wants, savings, transfers } = latestStateRef.current;
 
-      setCash(cashPrev => {
-        if (!cashPrev) return cashPrev;
+      setCash(() => {
         const { cash: newCash, autoLoans } = recalculateCashFromScratch(
           updated,
           transfers,
@@ -369,16 +422,23 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
   // --- Recalculate budgets from scratch (no transferDiff drift) ---
   const recalculateBudgets = useCallback(() => {
     setIncomes(currentIncomes => {
+      if (currentIncomes.length === 0) {
+        setCash(null);
+        return currentIncomes;
+      }
       setGlobalSplitState(currentSplit => {
-        setCash(prev => {
-          if (!prev) return prev;
+        setCash(() => {
           const { needs, wants, savings, transfers } = latestStateRef.current;
-          const { cash: newCash } = recalculateCashFromScratch(
+          const { cash: newCash, autoLoans } = recalculateCashFromScratch(
             currentIncomes,
             transfers,
             { needs, wants, savings },
             currentSplit
           );
+          setTransfers(prevTransfers => {
+            const manualTransfers = prevTransfers.filter(t => !t.isAutomatic);
+            return [...manualTransfers, ...autoLoans];
+          });
           return newCash;
         });
         return currentSplit;
@@ -390,8 +450,11 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
   const setGlobalSplitAndRecalculate = useCallback((split: SplitPercentages) => {
     setGlobalSplitState(split);
     setIncomes(currentIncomes => {
-      setCash(prev => {
-        if (!prev) return prev;
+      if (currentIncomes.length === 0) {
+        setCash(null);
+        return currentIncomes;
+      }
+      setCash(() => {
         const { needs, wants, savings, transfers } = latestStateRef.current;
         const { cash: newCash, autoLoans } = recalculateCashFromScratch(
           currentIncomes,
@@ -456,30 +519,7 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
     try {
       const data = await loadMonthBudget(user.uid, month);
       if (data) {
-        setCash(data.cash);
-        setNeeds(data.needs);
-        setWants(data.wants);
-        setSavings(data.savings);
-        setCurrentMonth(month);
-        // v2 fields — backward compatible with v1 data
-        setIncomes(data.incomes || []);
-        setTransfers(data.transfers || []);
-        setGlobalSplitState(data.globalSplit || DEFAULT_SPLIT);
-        // v2+ data: recalculate cash from scratch; v1 data uses cash as-is
-        if (!data.schemaVersion || data.schemaVersion >= 2) {
-          const expenses = { needs: data.needs, wants: data.wants, savings: data.savings };
-          const { cash: newCash, autoLoans } = recalculateCashFromScratch(
-            data.incomes || [],
-            data.transfers || [],
-            expenses,
-            data.globalSplit || DEFAULT_SPLIT
-          );
-          setCash(newCash);
-          setTransfers(prev => {
-            const manual = prev.filter(t => !t.isAutomatic);
-            return [...manual, ...autoLoans];
-          });
-        }
+        applyBudget(month, data);
       } else {
         resetAll();
         setCurrentMonth(month);

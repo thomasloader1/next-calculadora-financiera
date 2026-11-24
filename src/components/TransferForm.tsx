@@ -1,4 +1,5 @@
 'use client';
+
 import React, { useState, useMemo } from 'react';
 import { useExpenseContext } from '@/context/Expense/ExpenseContext';
 import { CategoryKey } from '@/interfaces/Transfer';
@@ -26,7 +27,7 @@ interface TransferFormProps {
 }
 
 const TransferForm: React.FC<TransferFormProps> = ({ onTransferred }) => {
-  const { cash, needs, wants, savings, addTransfer } = useExpenseContext();
+  const { cash, addTransfer } = useExpenseContext();
   const [isOpen, setIsOpen] = useState(false);
   const [from, setFrom] = useState<string>('');
   const [to, setTo] = useState<string>('');
@@ -36,7 +37,6 @@ const TransferForm: React.FC<TransferFormProps> = ({ onTransferred }) => {
 
   const remaining = useMemo(() => {
     if (!cash) return { needs: 0, wants: 0, savings: 0 };
-    // cash is now post-expense available amounts
     return {
       needs: cash.needs,
       wants: cash.wants,
@@ -80,65 +80,86 @@ const TransferForm: React.FC<TransferFormProps> = ({ onTransferred }) => {
     }
   };
 
-  // Compact mode — plain form (used inside modal)
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (from && to && amount && from !== to) {
+        handleTransfer();
+      }
+    }
+  };
+
+  // Compact mode — used inside modal
   if (isCompact) {
     return (
-      <div className="space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="space-y-4" onKeyDown={handleKeyDown}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Select
-            label="Desde"
+            label="Desde (Origen)"
             value={from}
             onChange={setFrom}
             options={availableOptions.length > 0 ? availableOptions : CATEGORY_OPTIONS}
-            placeholder="Categoría origen"
+            placeholder="Seleccionar origen"
           />
           <Select
-            label="Hacia"
+            label="Hacia (Destino)"
             value={to}
             onChange={setTo}
             options={CATEGORY_OPTIONS.filter(opt => opt.key !== from)}
-            placeholder="Categoría destino"
+            placeholder="Seleccionar destino"
           />
+        </div>
+
+        <div>
           <Input
             type="text"
             inputMode="decimal"
-            label="Monto"
+            label="Monto a transferir"
             value={amount}
             onChange={setAmount}
             placeholder="150000"
-            prefix={<span className="text-cds-muted text-sm">$</span>}
+            prefix={<span className="text-[#8A9A8E] text-sm">$</span>}
           />
         </div>
 
         {from && (
-          <p className="text-xs text-cds-muted">
-            Disponible en {CATEGORY_LABELS[from]}: {formatAmountInner(remaining[from as CategoryKey])}
-          </p>
+          <div className="p-3 bg-[#F4EFE8] dark:bg-[#1E2720] rounded-2xl border border-[#E8E2D8] dark:border-[#2A362D] text-xs text-[#5F6F63] dark:text-[#A3B4A5] flex items-center justify-between">
+            <span>Disponible en {CATEGORY_LABELS[from]}:</span>
+            <span className="font-bold font-mono text-[#232B25] dark:text-white">
+              {formatAmountInner(remaining[from as CategoryKey])}
+            </span>
+          </div>
         )}
 
-        <Button
-          size="sm"
-          isDisabled={!from || !to || !amount || from === to}
-          onClick={handleTransfer}
-        >
-          Transferir
-        </Button>
+        <div className="flex items-center justify-between pt-2">
+          <span className="text-[11px] text-[#8A9A8E] font-mono hidden sm:inline">
+            <kbd className="px-1.5 py-0.5 bg-[#F4EFE8] dark:bg-[#1E2720] rounded-md border border-[#E8E2D8] dark:border-[#2A362D]">⌘/Ctrl+Enter</kbd> para transferir
+          </span>
+          <Button
+            size="md"
+            isDisabled={!from || !to || !amount || from === to}
+            onClick={handleTransfer}
+            className="w-full sm:w-auto"
+          >
+            Confirmar Transferencia
+          </Button>
+        </div>
       </div>
     );
   }
 
-  // Accordion mode — standalone (legacy, kept for compatibility)
+  // Accordion mode — standalone
   return (
-    <div className="border border-cds-border rounded-cds-lg bg-cds-surface overflow-hidden">
+    <div className="calm-card overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-cds-surface/50 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-[#F4EFE8]/50 dark:hover:bg-[#1E2720]/50 transition-colors cursor-pointer"
       >
-        <div className="flex items-center gap-2 text-sm font-semibold text-cds-foreground">
-          <i className="pi pi-exchange-alt text-sm text-cds-primary"></i>
-          Transferencia manual
+        <div className="flex items-center gap-2.5 text-xs font-bold text-[#232B25] dark:text-white uppercase tracking-wider">
+          <i className="pi pi-exchange-alt text-[#D46743] text-xs"></i>
+          <span>Transferencia manual de fondos</span>
         </div>
-        <i className={`pi pi-chevron-down text-xs text-cds-muted transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}></i>
+        <i className={`pi pi-chevron-down text-xs text-[#8A9A8E] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}></i>
       </button>
 
       <div
@@ -146,45 +167,49 @@ const TransferForm: React.FC<TransferFormProps> = ({ onTransferred }) => {
           isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
         } overflow-hidden`}
       >
-        <div className="px-4 pb-4 space-y-3 border-t border-cds-border pt-3">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="px-5 pb-5 space-y-4 border-t border-[#E8E2D8] dark:border-[#2A362D] pt-4" onKeyDown={handleKeyDown}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select
-              label="Desde"
+              label="Desde (Origen)"
               value={from}
               onChange={setFrom}
               options={availableOptions.length > 0 ? availableOptions : CATEGORY_OPTIONS}
-              placeholder="Categoría origen"
+              placeholder="Seleccionar origen"
             />
             <Select
-              label="Hacia"
+              label="Hacia (Destino)"
               value={to}
               onChange={setTo}
               options={CATEGORY_OPTIONS.filter(opt => opt.key !== from)}
-              placeholder="Categoría destino"
-            />
-            <Input
-              type="text"
-              inputMode="decimal"
-              label="Monto"
-              value={amount}
-              onChange={setAmount}
-              placeholder="150000"
-              prefix={<span className="text-cds-muted text-sm">$</span>}
+              placeholder="Seleccionar destino"
             />
           </div>
 
+          <Input
+            type="text"
+            inputMode="decimal"
+            label="Monto a transferir"
+            value={amount}
+            onChange={setAmount}
+            placeholder="150000"
+            prefix={<span className="text-[#8A9A8E] text-sm">$</span>}
+          />
+
           {from && (
-            <p className="text-xs text-cds-muted">
-              Disponible en {CATEGORY_LABELS[from]}: {formatAmountInner(remaining[from as CategoryKey])}
-            </p>
+            <div className="p-3 bg-[#F4EFE8] dark:bg-[#1E2720] rounded-2xl border border-[#E8E2D8] dark:border-[#2A362D] text-xs text-[#5F6F63] dark:text-[#A3B4A5] flex items-center justify-between">
+              <span>Disponible en {CATEGORY_LABELS[from]}:</span>
+              <span className="font-bold font-mono text-[#232B25] dark:text-white">
+                {formatAmountInner(remaining[from as CategoryKey])}
+              </span>
+            </div>
           )}
 
           <Button
-            size="sm"
+            size="md"
             isDisabled={!from || !to || !amount || from === to}
             onClick={handleTransfer}
           >
-            Transferir
+            Confirmar Transferencia
           </Button>
         </div>
       </div>

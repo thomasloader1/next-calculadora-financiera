@@ -62,40 +62,42 @@ const MonthSelector: React.FC<MonthSelectorProps> = ({ isLoading = false }) => {
     };
 
     return (
-        <div className="flex items-center gap-2 flex-wrap">
-            <Button
-                size="sm"
-                isIconOnly
+        <div className="flex items-center gap-1 bg-[#FFEAD3] dark:bg-[#261F1A] p-1 rounded-full border border-[#F0D7BC] dark:border-[#3A2E25] shadow-2xs">
+            <button
+                type="button"
                 onClick={handlePrev}
-                isDisabled={!canGoPrev || isLoading}
-                className="bg-cds-surface text-cds-foreground hover:bg-cds-border rounded-cds-full w-8 h-8 min-w-0 transition-colors"
+                disabled={!canGoPrev || isLoading}
+                className="w-7 h-7 rounded-full flex items-center justify-center text-[#6B5547] hover:text-[#2C211B] dark:text-[#C4B1A3] dark:hover:text-white hover:bg-white dark:hover:bg-[#3A2E25] hover:shadow-xs transition-all disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
+                title="Mes anterior"
+                aria-label="Mes anterior"
             >
-                <i className="pi pi-chevron-left text-xs"></i>
-            </Button>
+                <i className="pi pi-chevron-left text-[10px]"></i>
+            </button>
             {isLoading ? (
-                <span className="font-semibold text-sm min-w-[140px] text-center">
-                    <span className="inline-block h-4 w-24 bg-cds-border rounded animate-pulse" />
+                <span className="font-semibold text-xs min-w-[120px] text-center">
+                    <span className="inline-block h-3.5 w-20 bg-[#F0D7BC] dark:bg-[#3A2E25] rounded-md animate-pulse" />
                 </span>
             ) : (
-                <span className="font-semibold text-sm min-w-[140px] text-center text-cds-foreground tabular-nums flex items-center justify-center gap-1.5">
+                <span className="font-semibold text-xs sm:text-sm min-w-[120px] text-center text-[#2C211B] dark:text-white tabular-nums tracking-tight flex items-center justify-center gap-1.5 px-2">
                     {formatMonth(year, monthIndex)}
                     {isSaving && (
-                        <svg className="animate-spin h-3.5 w-3.5 text-cds-muted" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <svg className="animate-spin h-3 w-3 text-[#D46743]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
                     )}
                 </span>
             )}
-            <Button
-                size="sm"
-                isIconOnly
+            <button
+                type="button"
                 onClick={handleNext}
-                isDisabled={!canGoNext || isLoading}
-                className="bg-cds-surface text-cds-foreground hover:bg-cds-border rounded-cds-full w-8 h-8 min-w-0 transition-colors"
+                disabled={!canGoNext || isLoading}
+                className="w-7 h-7 rounded-full flex items-center justify-center text-[#6B5547] hover:text-[#2C211B] dark:text-[#C4B1A3] dark:hover:text-white hover:bg-white dark:hover:bg-[#3A2E25] hover:shadow-xs transition-all disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
+                title="Mes siguiente"
+                aria-label="Mes siguiente"
             >
-                <i className="pi pi-chevron-right text-xs"></i>
-            </Button>
+                <i className="pi pi-chevron-right text-[10px]"></i>
+            </button>
         </div>
     );
 };
