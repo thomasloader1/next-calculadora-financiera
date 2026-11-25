@@ -1,6 +1,7 @@
 import type { Expense, MonthBudget } from '@/interfaces/Expense';
 import type { Transfer } from '@/interfaces/Transfer';
 import type { SplitPercentages } from '@/interfaces/Income';
+import { parseAmount, isStorableAmount } from './validation';
 
 export interface ExcelExportData {
   month: string;
@@ -323,8 +324,8 @@ export async function importFromExcel(file: File): Promise<ExcelImportResult> {
 
         const description = descKeyObj ? String(row[descKeyObj.original] || 'Gasto') : 'Gasto';
         const rawAmt = amountKeyObj ? row[amountKeyObj.original] : 0;
-        const amount = typeof rawAmt === 'number' ? rawAmt : parseFloat(String(rawAmt).replace(/[^0-9.-]+/g, '')) || 0;
-        if (amount <= 0) continue;
+        const amount = parseAmount(rawAmt as string | number);
+        if (!isStorableAmount(amount)) continue;
 
         const rawCurr = currKeyObj ? String(row[currKeyObj.original] || 'ARS').trim().toUpperCase() : 'ARS';
         const currency = rawCurr === 'USD' ? 'USD' : 'ARS';
@@ -355,8 +356,8 @@ export async function importFromExcel(file: File): Promise<ExcelImportResult> {
         for (const r of rawRows) {
           const description = descKeyObj ? String(r[descKeyObj.original] || 'Gasto') : 'Gasto';
           const rawAmt = amountKeyObj ? r[amountKeyObj.original] : 0;
-          const amount = typeof rawAmt === 'number' ? rawAmt : parseFloat(String(rawAmt).replace(/[^0-9.-]+/g, '')) || 0;
-          if (amount <= 0) continue;
+          const amount = parseAmount(rawAmt as string | number);
+          if (!isStorableAmount(amount)) continue;
 
           const rawCurr = currKeyObj ? String(r[currKeyObj.original] || 'ARS').trim().toUpperCase() : 'ARS';
           const currency = rawCurr === 'USD' ? 'USD' : 'ARS';

@@ -251,3 +251,55 @@ export function recalculateCashFromScratch(
     autoLoans,
   };
 }
+
+/**
+ * Adjusts one category's percentage (0..100 integer) and redistributes the delta
+ * across the remaining categories so needs + wants + savings always equals 100.
+ */
+export function autoAdjustSplit(
+  changedKey: CategoryKey,
+  newVal: number,
+  current: SplitPercentages,
+): SplitPercentages {
+  const target = Math.min(100, Math.max(0, Math.round(newVal)));
+  const cur: SplitPercentages = {
+    needs: Math.round(current.needs),
+    wants: Math.round(current.wants),
+    savings: Math.round(current.savings),
+  };
+
+  if (target === cur[changedKey] && cur.needs + cur.wants + cur.savings === 100) {
+    return cur;
+  }
+
+  if (changedKey === 'wants') {
+    const rem = 100 - target;
+    const otherSum = cur.needs + cur.savings;
+    const needs = otherSum <= 0
+      ? Math.round(rem * (50 / 70))
+      : Math.round((cur.needs / otherSum) * rem);
+    return {
+      needs,
+      wants: target,
+      savings: rem - needs,
+    };
+  }
+
+  const [primaryOther, secondaryOther]: [CategoryKey, CategoryKey] =
+    changedKey === 'needs' ? ['wants', 'savings'] : ['wants', 'needs'];
+
+  const delta = target - cur[changedKey];
+  const result: SplitPercentages = { ...cur, [changedKey]: target };
+
+  if (delta > 0) {
+    const takePrimary = Math.min(delta, cur[primaryOther]);
+    result[primaryOther] = cur[primaryOther] - takePrimary;
+    result[secondaryOther] = Math.max(0, 100 - target - result[primaryOther]);
+  } else {
+    const give = -delta;
+    result[primaryOther] = Math.min(100 - target, cur[primaryOther] + give);
+    result[secondaryOther] = Math.max(0, 100 - target - result[primaryOther]);
+  }
+
+  return result;
+}

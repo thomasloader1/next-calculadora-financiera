@@ -8,6 +8,15 @@ import { useAuthContext } from '@/context/Auth/AuthContext';
 import { saveMonthBudget, loadMonthBudget, getUserMonths } from '@/Services/firebase';
 import { canAutoSave } from './sessionGuard';
 import { toast } from 'sonner';
+import { isStorableAmount } from '@/lib/validation';
+
+/** Last line of defence: forms validate first, this keeps bad numbers out of storage */
+function rejectAmount(where: string, amount: unknown): boolean {
+  if (isStorableAmount(amount)) return false;
+  console.warn(`[${where}] rejected invalid amount:`, amount);
+  toast.error('No se guardó: el monto no es válido.');
+  return true;
+}
 
 const ExpenseContext = createContext<ExpenseContextType | undefined>(undefined);
 
@@ -213,6 +222,7 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
 
   // --- Add expense with auto-loan (synchronous, no setTimeout) ---
   const addExpenseToCategory = useCallback((category: ExpenseCategory, expense: Expense) => {
+    if (rejectAmount('addExpense', expense.amount)) return;
     const { needs, wants, savings, transfers } = latestStateRef.current;
 
     // Compute new expenses (including the new expense)
@@ -255,6 +265,7 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
 
   // --- Income CRUD ---
   const addIncome = useCallback((income: Omit<Income, 'id'>) => {
+    if (rejectAmount('addIncome', income.amount)) return;
     const newIncome: Income = {
       ...income,
       id: `inc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -278,6 +289,7 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
   }, [globalSplit]);
 
   const updateIncome = useCallback((id: string, updates: Partial<Income>) => {
+    if ('amount' in updates && rejectAmount('updateIncome', updates.amount)) return;
     setIncomes(prev => {
       const updated = prev.map(inc => inc.id === id ? { ...inc, ...updates } : inc);
       const { needs, wants, savings, transfers } = latestStateRef.current;
@@ -333,6 +345,7 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
 
   // --- Transfers ---
   const addTransfer = useCallback((from: CategoryKey, to: CategoryKey, amount: number, reason?: string, remaining?: Partial<CashState>) => {
+    if (rejectAmount('addTransfer', amount)) return;
     if (!cash) return;
     try {
       const cashForValidation = remaining
@@ -396,6 +409,7 @@ export function ExpenseProvider({ children }: ExpenseProviderProps) {
   }, []);
 
   const updateTransferAmount = useCallback((transferId: string, newAmount: number) => {
+    if (rejectAmount('updateTransfer', newAmount)) return;
     setTransfers(prev => {
       const transfer = prev.find(t => t.id === transferId);
       if (!transfer) return prev;

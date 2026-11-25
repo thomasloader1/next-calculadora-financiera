@@ -142,27 +142,26 @@ export default function ProfilePage() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FAF6F0] dark:bg-[#15110E]">
-        <i className="pi pi-spin pi-spinner text-2xl text-[#D46743]"></i>
+      <div className="min-h-screen flex items-center justify-center bg-paper">
+        <i className="pi pi-spin pi-spinner text-2xl text-accent" aria-hidden="true"></i>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF6F0] dark:bg-[#15110E] flex flex-col pb-12">
+    <div className="min-h-screen bg-paper flex flex-col pb-12">
       {/* Top Header */}
-      <header className="sticky top-0 z-30 bg-[#FAF6F0]/90 dark:bg-[#15110E]/90 backdrop-blur-md border-b border-[#F0D7BC] dark:border-[#3A2E25]">
+      <header className="sticky top-0 z-30 bg-paper border-b border-rule">
         <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
           <button
+            type="button"
             onClick={() => router.push('/')}
-            className="calm-btn-secondary px-3.5 py-1.5 text-xs inline-flex items-center gap-2 cursor-pointer"
+            className="calm-btn-secondary"
           >
-            <i className="pi pi-arrow-left text-xs text-[#D46743]"></i>
+            <i className="pi pi-arrow-left text-xs" aria-hidden="true"></i>
             <span>Volver a la calculadora</span>
           </button>
-          <span className="text-xs font-semibold text-[#9E8575] font-mono uppercase tracking-wider bg-white/70 dark:bg-[#1A201C] px-3 py-1 rounded-full border border-[#F0D7BC] dark:border-[#3A2E25]">
-            Mi Perfil
-          </span>
+          <span className="text-sm text-muted">Mi perfil</span>
         </div>
       </header>
 
@@ -175,35 +174,33 @@ export default function ProfilePage() {
               <img
                 src={user.photoURL}
                 alt={user.displayName || user.email || ''}
-                className="w-16 h-16 rounded-full object-cover ring-2 ring-[#D46743]/30"
+                className="w-16 h-16 rounded-full object-cover"
               />
             ) : (
               <div
-                className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-sm ${nameToColor(user.displayName || user.email || '')}`}
+                className={`w-16 h-16 rounded-full flex items-center justify-center text-accent-ink text-xl font-bold ${nameToColor(user.displayName || user.email || '')}`}
               >
                 {getInitial(user.displayName || user.email)}
               </div>
             )}
             <div className="min-w-0">
-              <h1 className="text-xl font-bold text-[#2C332D] dark:text-white truncate">
+              <h1 className="text-2xl text-ink truncate">
                 {user.displayName || 'Usuario'}
               </h1>
-              <p className="text-xs text-[#9E8575] truncate">{user.email}</p>
+              <p className="text-sm text-muted truncate">{user.email}</p>
             </div>
           </div>
         </section>
 
         {/* iPhone & Widgets Integration Card */}
-        <section className="calm-card p-6 sm:p-7 bg-gradient-to-br from-white to-[#F4EFE8]/70 dark:from-[#1A201C] dark:to-[#121613] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <section className="plastic plastic--savings p-6 sm:p-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-full bg-[#EDF9FA] dark:bg-[#132426] text-[#D46743] dark:text-[#BFE7EA] flex items-center justify-center shrink-0">
-              <i className="pi pi-mobile text-lg"></i>
-            </div>
+            <i className="pi pi-mobile text-lg text-ink mt-0.5" aria-hidden="true"></i>
             <div className="space-y-1">
-              <h2 className="text-sm font-bold text-[#2C332D] dark:text-white">
+              <h2 className="text-base text-ink">
                 Atajos & Widgets de iPhone y Android
               </h2>
-              <p className="text-xs text-[#6B5547] dark:text-[#BFE7EA] max-w-md">
+              <p className="text-sm text-ink-2 max-w-md">
                 Registrá gastos o ingresos rápidamente con el Botón de Acción, Siri o widgets en la pantalla de inicio sin abrir la app.
               </p>
             </div>
@@ -211,7 +208,7 @@ export default function ProfilePage() {
           <button
             type="button"
             onClick={() => setShowIPhoneModal(true)}
-            className="calm-btn-primary px-4 py-2 text-xs font-semibold shrink-0 cursor-pointer shadow-sm"
+            className="calm-btn-secondary shrink-0"
           >
             Configurar Atajo / Widget
           </button>
@@ -219,11 +216,8 @@ export default function ProfilePage() {
 
         {/* Birth Date Form */}
         <section className="calm-card p-6 sm:p-7 space-y-4">
-          <div className="flex items-center gap-2 text-[#2C332D] dark:text-white">
-            <div className="w-7 h-7 rounded-full bg-[#EDF9FA] dark:bg-[#132426] text-[#D46743] flex items-center justify-center text-xs">
-              <i className="pi pi-calendar"></i>
-            </div>
-            <h2 className="text-sm font-bold">Fecha de nacimiento</h2>
+          <div className="flex items-center gap-2 text-ink">
+            <h2 className="text-base">Fecha de nacimiento</h2>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <MaskedInput
@@ -238,20 +232,21 @@ export default function ProfilePage() {
               className="flex-1 calm-input"
             />
             <button
+              type="button"
               onClick={handleSaveDate}
               disabled={savingDate}
-              className="calm-btn-primary px-5 py-2.5 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer inline-flex items-center justify-center gap-2 shadow-sm"
+              className="calm-btn-primary min-h-[44px]"
             >
-              <i className={`pi ${savingDate ? 'pi-spin pi-spinner' : 'pi-check'} text-xs`}></i>
+              <i className={`pi ${savingDate ? 'pi-spin pi-spinner' : 'pi-check'} text-xs`} aria-hidden="true"></i>
               <span>{savingDate ? 'Guardando…' : 'Guardar'}</span>
             </button>
           </div>
           {dateError && (
-            <p className="text-xs text-[#D46743]">{dateError}</p>
+            <p className="text-sm text-error" role="alert">{dateError}</p>
           )}
           {profileBirthDate && !dateError && (
-            <p className="text-xs text-[#D46743] dark:text-[#BFE7EA] flex items-center gap-1.5 font-medium">
-              <i className="pi pi-check-circle text-xs"></i>
+            <p className="text-sm text-accent flex items-center gap-1.5">
+              <i className="pi pi-check-circle text-xs" aria-hidden="true"></i>
               <span>Fecha registrada: {profileBirthDate}</span>
             </p>
           )}
@@ -259,68 +254,58 @@ export default function ProfilePage() {
 
         {/* Months History */}
         <section className="calm-card p-6 sm:p-7 space-y-4">
-          <div className="flex items-center gap-2 text-[#2C332D] dark:text-white">
-            <div className="w-7 h-7 rounded-full bg-[#EDF9FA] dark:bg-[#132426] text-[#D46743] flex items-center justify-center text-xs">
-              <i className="pi pi-clock"></i>
-            </div>
-            <h2 className="text-sm font-bold">Historial de Meses</h2>
+          <div className="flex items-center gap-2 text-ink">
+            <h2 className="text-base">Historial de meses</h2>
           </div>
 
           {monthsLoading ? (
             <div className="space-y-2.5">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center justify-between h-14 bg-[#FFEAD3]/40 dark:bg-[#1E1814] rounded-2xl animate-pulse px-4">
-                  <div className="h-4 w-28 bg-[#F0D7BC] dark:bg-[#3A2E25] rounded-full" />
-                  <div className="h-4 w-24 bg-[#F0D7BC] dark:bg-[#3A2E25] rounded-full" />
+                <div key={i} className="flex items-center justify-between h-12 bg-paper-2 rounded-input animate-pulse px-4">
+                  <div className="h-4 w-28 bg-rule rounded-full" />
+                  <div className="h-4 w-24 bg-rule rounded-full" />
                 </div>
               ))}
             </div>
           ) : months.length === 0 ? (
-            <p className="text-xs text-[#9E8575] py-3">No hay meses guardados todavía.</p>
+            <p className="text-sm text-muted py-3">No hay meses guardados todavía.</p>
           ) : (
-            <div className="divide-y divide-[#F0D7BC]/70 dark:divide-[#3A2E25]">
-              {months.map((m) => {
-                const [year, monthNum] = m.id.split('-');
-                const monthName = MONTH_NAMES[parseInt(monthNum, 10) - 1] || m.id;
-                const totalIncome = m.budget.cash?.totalIncome ?? 0;
-                const totalExpenses = [...m.budget.needs, ...m.budget.wants, ...m.budget.savings]
-                  .reduce((sum, e) => sum + e.amount, 0);
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-rule text-left text-muted">
+                  <th scope="col" className="py-2 pr-3 font-medium whitespace-nowrap">Mes</th>
+                  <th scope="col" className="py-2 px-3 font-medium text-right whitespace-nowrap">Ingresos</th>
+                  <th scope="col" className="py-2 px-3 font-medium text-right whitespace-nowrap hidden sm:table-cell">Gastos</th>
+                  <th scope="col" className="py-2 pl-3 font-medium text-right whitespace-nowrap">Balance</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-rule">
+                {months.map((m) => {
+                  const [year, monthNum] = m.id.split('-');
+                  const monthName = MONTH_NAMES[parseInt(monthNum, 10) - 1] || m.id;
+                  const totalIncome = m.budget.cash?.totalIncome ?? 0;
+                  const totalExpenses = [...m.budget.needs, ...m.budget.wants, ...m.budget.savings]
+                    .reduce((sum, e) => sum + e.amount, 0);
 
-                return (
-                  <div
-                    key={m.id}
-                    className="flex items-center justify-between py-3.5 px-2 hover:bg-[#FFEAD3]/40 dark:hover:bg-[#261F1A]/50 rounded-2xl transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <span className="text-sm font-semibold text-[#2C332D] dark:text-white">
+                  return (
+                    <tr key={m.id}>
+                      <th scope="row" className="py-3 pr-3 text-left font-medium text-ink whitespace-nowrap">
                         {monthName} {year}
-                      </span>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-[#D46743] dark:text-[#BFE7EA] flex items-center gap-1 font-mono font-medium">
-                          <i className="pi pi-arrow-up text-[9px]"></i>
-                          {formatCurrency(totalIncome)}
-                        </span>
-                        <span className="text-xs text-[#9E8575] flex items-center gap-1 font-mono font-medium">
-                          <i className="pi pi-arrow-down text-[9px]"></i>
-                          {formatCurrency(totalExpenses)}
-                        </span>
-                      </div>
-                    </div>
-                    <span
-                      className={`text-sm font-bold font-mono tabular-nums ${
-                        m.balance > 0
-                          ? 'text-[#D46743] dark:text-[#BFE7EA]'
-                          : m.balance < 0
-                          ? 'text-[#D46743]'
-                          : 'text-[#9E8575]'
-                      }`}
-                    >
-                      {m.balance >= 0 ? '+' : ''}{formatCurrency(m.balance)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+                      </th>
+                      <td className="py-3 px-3 text-right tabular-nums text-ink-2">{formatCurrency(totalIncome)}</td>
+                      <td className="py-3 px-3 text-right tabular-nums text-ink-2 hidden sm:table-cell">{formatCurrency(totalExpenses)}</td>
+                      <td
+                        className={`py-3 pl-3 text-right font-medium tabular-nums ${
+                          m.balance > 0 ? 'text-accent' : m.balance < 0 ? 'text-error' : 'text-muted'
+                        }`}
+                      >
+                        {m.balance >= 0 ? '+' : ''}{formatCurrency(m.balance)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
         </section>
       </main>

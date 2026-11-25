@@ -7,6 +7,8 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Toggle } from '@/components/ui/Toggle';
 import { getOfficialRate, DollarRate } from '@/lib/exchangeRate';
 import { parseMaskedAmount } from '@/lib/formatAmount';
+import { validateAmount, validateDescription, MAX_DESCRIPTION } from '@/lib/validation';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 
@@ -50,17 +52,23 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ defaultCategory, onAdde
     return () => { cancelled = true; };
   }, [isUsd]);
 
+  const { shown, touch, attempt, reset } = useFieldErrors<'amount' | 'category' | 'description'>();
+  const amountError = validateAmount(expense);
+  const categoryError = CATEGORY_MAP[expenseCategory] ? null : 'Elegí una categoría.';
+  const descriptionError = validateDescription(expenseDescription);
+  const rateMissing = isUsd && !rate;
+
   const handleAddExpense = () => {
-    const categoryKey = CATEGORY_MAP[expenseCategory];
-    if (!categoryKey) {
-      toast.error('Seleccione una categoria');
+    if (!attempt([amountError, categoryError, descriptionError])) return;
+    if (rateMissing) {
+      toast.warning(rateError || 'Esperá a que cargue la cotización del dólar.');
       return;
     }
-
+    const categoryKey = CATEGORY_MAP[expenseCategory];
     const numericAmount = parseMaskedAmount(expense);
     const newExpense: Expense = {
       id: (Math.random() + Date.now()).toString(),
-      description: expenseDescription !== "" ? `${expenseDescription}` : "Sin descripción",
+      description: expenseDescription.trim() !== '' ? expenseDescription.trim() : 'Sin descripción',
       amount: numericAmount,
     };
 
@@ -76,6 +84,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ defaultCategory, onAdde
     setExpense('');
     setExpenseCategory(defaultCategory ? REVERSE_CATEGORY_MAP[defaultCategory] || '' : '');
     setExpenseDescription('');
+    reset();
     onAdded?.();
   };
 
@@ -89,9 +98,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ defaultCategory, onAdde
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault();
-      if (expense !== '' && expenseCategory !== '' && (!isUsd || rate)) {
-        handleAddExpense();
-      }
+      handleAddExpense();
     }
   };
 
@@ -120,16 +127,16 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ defaultCategory, onAdde
       </div>
 
       {isUsd && (
-        <div className="text-xs rounded-2xl bg-[#F4EFE8] dark:bg-[#1E2720] border border-[#E8E2D8] dark:border-[#2A362D] px-3.5 py-2.5">
+        <div className="text-xs rounded-card bg-paper-2 border border-rule px-3.5 py-2.5">
           {rateError ? (
-            <span className="text-[#B44C4C]">{rateError}</span>
+            <span className="text-error">{rateError}</span>
           ) : rate ? (
             <div className="flex flex-col gap-0.5">
-              <span>1 USD = <strong className="font-bold text-[#232B25] dark:text-white">${rate.venta.toLocaleString('es-AR')}</strong> ARS</span>
-              {rateAge && <span className="text-[#5F6F63] dark:text-[#A3B4A5]">Actualizado: {rateAge}</span>}
+              <span>1 USD = <strong className="font-bold text-ink">${rate.venta.toLocaleString('es-AR')}</strong> ARS</span>
+              {rateAge && <span className="text-muted">Actualizado: {rateAge}</span>}
             </div>
           ) : (
-            <span className="text-[#5F6F63] dark:text-[#A3B4A5]">Cargando cotización oficial...</span>
+            <span className="text-muted">Cargando cotización oficial…</span>
           )}
         </div>
       )}
@@ -138,19 +145,22 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ defaultCategory, onAdde
         type="text"
         inputMode="decimal"
         label={isUsd ? 'Monto del gasto (USD)' : 'Monto del gasto (ARS)'}
-        description={expense !== '' && (isUsd && rate ? `≈ ${formatAmountInner(parseMaskedAmount(expense) * rate.venta)}` : `$ ${expense}`)}
+        description={!amountError && (isUsd && rate ? `≈ ${formatAmountInner(parseMaskedAmount(expense) * rate.venta)}` : formatAmountInner(parseMaskedAmount(expense)))}
+        error={shown('amount', amountError)}
+        onBlur={touch('amount')}
         value={expense}
         onChange={setExpense}
         placeholder='15000'
         className='w-full'
-        prefix={<span className="text-[#8A9A8E] text-sm">{isUsd ? 'US$' : '$'}</span>}
+        prefix={<span className="text-muted text-sm">{isUsd ? 'US$' : '$'}</span>}
       />
 
       <Select
         label="Categoría del fondo"
-        placeholder="Seleccione una categoría"
+        placeholder="Elegí una categoría"
         value={expenseCategory}
         onChange={setExpenseCategory}
+        error={shown('category', categoryError)}
         options={groupNames.map((g) => ({ key: g.name, label: g.name }))}
       />
 
@@ -160,18 +170,21 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ defaultCategory, onAdde
         placeholder='Ej. Supermercado, Alquiler, Salida...'
         value={expenseDescription}
         onChange={setExpenseDescription}
+        onBlur={touch('description')}
+        error={shown('description', descriptionError)}
+        maxLength={MAX_DESCRIPTION + 20}
       />
 
       <div className="flex items-center justify-between pt-2">
         <Button
           size='md'
-          isDisabled={expense === '' || expenseCategory === '' || (isUsd && !rate)}
+          isDisabled={rateMissing && !rateError}
           onClick={handleAddExpense}
         >
-          Confirmar Gasto
+          Confirmar gasto
         </Button>
-        <span className="text-[11px] text-[#8A9A8E] font-mono">
-          <kbd className="px-1.5 py-0.5 bg-[#F4EFE8] dark:bg-[#1E2720] border border-[#E8E2D8] dark:border-[#2A362D] rounded-md text-[10px]">⌘/Ctrl+Enter</kbd>
+        <span className="text-xs text-muted font-mono">
+          <kbd className="px-1.5 py-0.5 bg-paper-2 border border-rule rounded-md text-xs">⌘/Ctrl+Enter</kbd>
         </span>
       </div>
     </div>

@@ -1,78 +1,175 @@
 'use client';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
-const ESTIMATED_HEIGHT = 160; // w-72 with typical content (title + desc + example)
+const ESTIMATED_HEIGHT = 160;
+const TOOLTIP_MAX_WIDTH = 288; // w-72
+const VIEWPORT_MARGIN = 12;
 
 interface TooltipProps {
   content: React.ReactNode;
   children?: React.ReactNode;
 }
 
+interface TooltipCoords {
+  top?: number;
+  bottom?: number;
+  left: number;
+  arrowLeft: number;
+  direction: 'top' | 'bottom';
+}
+
 const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
   const [isVisible, setIsVisible] = useState(false);
-  const [direction, setDirection] = useState<'top' | 'bottom'>('top');
+  const [mounted, setMounted] = useState(false);
+  const [coords, setCoords] = useState<TooltipCoords | null>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  const handleMouseEnter = () => {
-    if (triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      const spaceAbove = rect.top;
-      const spaceBelow = window.innerHeight - rect.bottom;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-      if (spaceAbove < ESTIMATED_HEIGHT + 8 && spaceBelow > ESTIMATED_HEIGHT + 8) {
-        setDirection('bottom');
-      } else {
-        setDirection('top');
-      }
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current || typeof window === 'undefined') return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const viewportW = window.innerWidth;
+    const viewportH = window.innerHeight;
+    const tooltipW = Math.min(TOOLTIP_MAX_WIDTH, viewportW - VIEWPORT_MARGIN * 2);
+
+    const triggerCenterX = rect.left + rect.width / 2;
+    const left = Math.max(
+      VIEWPORT_MARGIN,
+      Math.min(viewportW - tooltipW - VIEWPORT_MARGIN, triggerCenterX - tooltipW / 2)
+    );
+    const arrowLeft = Math.max(14, Math.min(tooltipW - 14, triggerCenterX - left));
+
+    const actualHeight = tooltipRef.current?.offsetHeight ?? ESTIMATED_HEIGHT;
+    const spaceAbove = rect.top;
+    const spaceBelow = viewportH - rect.bottom;
+
+    const direction: 'top' | 'bottom' =
+      spaceAbove < actualHeight + 12 && spaceBelow > spaceAbove ? 'bottom' : 'top';
+
+    if (direction === 'top') {
+      setCoords({
+        bottom: viewportH - rect.top + 8,
+        left,
+        arrowLeft,
+        direction: 'top',
+      });
+    } else {
+      setCoords({
+        top: rect.bottom + 8,
+        left,
+        arrowLeft,
+        direction: 'bottom',
+      });
     }
+  }, []);
+
+  const show = () => {
+    updatePosition();
     setIsVisible(true);
   };
 
-  // Correct after render if estimate was off
+  const hide = () => {
+    setIsVisible(false);
+  };
+
+  // Re-measure once tooltip DOM node mounts and keep synced on scroll/resize/outside tap
   useEffect(() => {
-    if (!isVisible || !tooltipRef.current) return;
+    if (!isVisible) return;
+    updatePosition();
 
-    const tooltipRect = tooltipRef.current.getBoundingClientRect();
+    const handleScrollOrResize = () => updatePosition();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsVisible(false);
+    };
+    const handlePointerDown = (e: PointerEvent) => {
+      const target = e.target as Node | null;
+      if (
+        target &&
+        !triggerRef.current?.contains(target) &&
+        !tooltipRef.current?.contains(target)
+      ) {
+        setIsVisible(false);
+      }
+    };
 
-    if (direction === 'top' && tooltipRect.top < 0) {
-      setDirection('bottom');
-    } else if (direction === 'bottom' && tooltipRect.bottom > window.innerHeight) {
-      setDirection('top');
-    }
-  }, [isVisible, direction]);
+    window.addEventListener('scroll', handleScrollOrResize, { capture: true, passive: true });
+    window.addEventListener('resize', handleScrollOrResize, { passive: true });
+    window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, { capture: true });
+      window.removeEventListener('resize', handleScrollOrResize);
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [isVisible, updatePosition]);
 
   return (
     <div
       ref={triggerRef}
       className="relative inline-flex"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={() => setIsVisible(false)}
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
     >
-      {children || (
-        <button className="text-notion-muted hover:text-notion-accent transition-colors">
-          <i className="pi pi-info-circle text-sm"></i>
+      {children ? (
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isVisible) hide();
+            else show();
+          }}
+        >
+          {children}
+        </div>
+      ) : (
+        <button
+          type="button"
+          aria-label="Más información"
+          aria-expanded={isVisible}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isVisible) hide();
+            else show();
+          }}
+          className="w-8 h-8 -m-1.5 inline-flex items-center justify-center rounded-input text-muted hover:text-accent transition-colors cursor-pointer"
+        >
+          <i className="pi pi-info-circle text-sm" aria-hidden="true"></i>
         </button>
       )}
-      {isVisible && (
+
+      {mounted && isVisible && coords && createPortal(
         <div
           ref={tooltipRef}
-          className={`absolute z-50 left-1/2 -translate-x-1/2 w-72 p-3 bg-notion-fg-2 text-notion-bg text-xs leading-relaxed rounded-notion-md shadow-xl pointer-events-none ${
-            direction === 'top'
-              ? 'bottom-full mb-2'
-              : 'top-full mt-2'
-          }`}
+          role="tooltip"
+          style={{
+            position: 'fixed',
+            top: coords.top,
+            bottom: coords.bottom,
+            left: coords.left,
+            zIndex: 600,
+          }}
+          className="w-72 max-w-[calc(100vw-24px)] p-3 bg-ink-2 text-paper text-sm leading-relaxed rounded-input shadow-lift pointer-events-none"
         >
           {content}
           {/* Arrow */}
           <div
-            className={`absolute left-1/2 -translate-x-1/2 w-0 h-0 ${
-              direction === 'top'
-                ? 'top-full border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-notion-fg-2'
-                : 'bottom-full border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-notion-fg-2'
+            style={{ left: coords.arrowLeft }}
+            className={`absolute -translate-x-1/2 w-0 h-0 ${
+              coords.direction === 'top'
+                ? 'top-full border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-ink-2'
+                : 'bottom-full border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-ink-2'
             }`}
           />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -86,10 +183,10 @@ const TooltipContent: React.FC<{
 }> = ({ title, description, example }) => (
   <div>
     <p className="font-bold text-sm mb-1">{title}</p>
-    <p className="text-white/80 mb-2">{description}</p>
-    <div className="bg-white/10 rounded px-2 py-1.5 text-white/60">
-      <span className="text-white/40 text-[10px] uppercase tracking-wider">Ejemplo</span>
-      <p className="text-white/90 mt-0.5">{example}</p>
+    <p className="text-paper/80 mb-2">{description}</p>
+    <div className="bg-paper/10 rounded px-2 py-1.5 text-paper/70">
+      <span className="text-paper/50 text-xs">Ejemplo</span>
+      <p className="text-paper/95 mt-0.5">{example}</p>
     </div>
   </div>
 );

@@ -6,5 +6,6 @@ export { Chip } from './Chip';
 export { Toggle } from './Toggle';
 export { Modal } from './Modal';
 export { Tooltip, TooltipContent } from './Tooltip';
+export { VolumeKnob, type KnobVariant } from './VolumeKnob';
 export { DataTable, type DataTableProps, type DataTableColumn } from '../DataTable';
 export { LazyDataTable } from '../LazyDataTable';

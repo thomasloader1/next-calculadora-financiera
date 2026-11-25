@@ -1,24 +1,46 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePlatform } from '@/hooks/usePlatform';
 import { toast } from 'sonner';
+import { IPhoneIntegrationModal } from './IPhoneIntegrationModal';
+
+const DISMISS_KEY = 'calc:install-banner-dismissed';
 
 interface InstallPromptBannerProps {
-  onOpenWidgetModal: (tab?: 'widget' | 'android' | 'shortcut') => void;
+  onOpenWidgetModal?: (tab?: 'widget' | 'android' | 'shortcut') => void;
 }
 
 export const InstallPromptBanner: React.FC<InstallPromptBannerProps> = ({
   onOpenWidgetModal,
 }) => {
   const { os, osName, isMobile, isStandalone, canPromptNativeInstall, promptInstall } = usePlatform();
-  const [isDismissed, setIsDismissed] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(true);
   const [showIosGuide, setShowIosGuide] = useState(false);
+  const [showWidgetModal, setShowWidgetModal] = useState(false);
+  const [widgetModalTab, setWidgetModalTab] = useState<'widget' | 'android' | 'shortcut'>('widget');
 
-  // If already running in standalone PWA mode, don't show
-  if (isStandalone) {
+  useEffect(() => {
+    try {
+      setIsDismissed(sessionStorage.getItem(DISMISS_KEY) === '1');
+    } catch {
+      setIsDismissed(false);
+    }
+  }, []);
+
+  // If already running in standalone PWA mode or dismissed, don't show
+  if (isStandalone || isDismissed) {
     return null;
   }
+
+  const handleDismiss = () => {
+    setIsDismissed(true);
+    try {
+      sessionStorage.setItem(DISMISS_KEY, '1');
+    } catch {
+      /* ignore */
+    }
+  };
 
   const handleInstallApp = async () => {
     if (canPromptNativeInstall) {
@@ -34,117 +56,94 @@ export const InstallPromptBanner: React.FC<InstallPromptBannerProps> = ({
   };
 
   const handleInstallWidget = () => {
-    if (os === 'android') {
-      onOpenWidgetModal('android');
+    const tab = os === 'android' ? 'android' : 'widget';
+    if (onOpenWidgetModal) {
+      onOpenWidgetModal(tab);
     } else {
-      onOpenWidgetModal('widget');
+      setWidgetModalTab(tab);
+      setShowWidgetModal(true);
     }
   };
 
-  if (isDismissed) {
-    return (
-      <div className="fixed bottom-20 sm:bottom-6 right-4 z-40 animate-in fade-in zoom-in-95">
-        <button
-          type="button"
-          onClick={() => setIsDismissed(false)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#D46743] hover:bg-[#BF5835] text-white text-xs font-semibold rounded-full shadow-lg shadow-[#D46743]/30 transition-all cursor-pointer active:scale-95"
-        >
-          <i className="pi pi-download text-xs"></i>
-          <span>Instalar App {isMobile ? '/ Widget' : ''}</span>
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <aside
-      aria-label="Aviso de instalación"
-      className="mb-5 bg-[#EDF9FA] dark:bg-[#132426] border border-[#BFE7EA] dark:border-[#1E373A] rounded-3xl p-4 sm:p-5 shadow-xs transition-all"
-    >
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5">
-        {/* Left icon & text */}
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-full bg-[#D46743] text-white flex items-center justify-center shrink-0 shadow-xs text-xs">
-            {os === 'ios' ? (
-              <i className="pi pi-apple"></i>
-            ) : os === 'android' ? (
-              <i className="pi pi-android"></i>
-            ) : (
-              <i className="pi pi-check"></i>
-            )}
-          </div>
-          <div className="space-y-0.5 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-bold text-[#2C211B] dark:text-white">
-                Instalá la App en tu {osName}
-              </span>
-              <span className="text-[10px] font-semibold font-mono px-2 py-0.5 rounded-full bg-[#BFE7EA] dark:bg-[#1E373A] text-[#1E373A] dark:text-[#BFE7EA]">
-                {os.toUpperCase()}
-              </span>
+    <>
+      <aside
+        aria-label="Aviso de instalación"
+        className="border-b border-rule bg-paper-2"
+      >
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-2.5">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0">
+              <i
+                className={`pi ${os === 'ios' ? 'pi-apple' : os === 'android' ? 'pi-android' : 'pi-desktop'} text-sm text-muted mt-1`}
+                aria-hidden="true"
+              ></i>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-ink">Instalá la app en tu {osName}</p>
+                <p className="text-sm text-muted">
+                  {isMobile
+                    ? 'Acceso instantáneo, sin conexión y con atajo rápido para tus gastos diarios.'
+                    : 'Instalá la app en tu computadora para acceso rápido en ventana propia.'}
+                </p>
+              </div>
             </div>
-            <p className="text-[11px] text-[#6B5547] dark:text-[#C4B1A3] leading-relaxed">
-              {isMobile
-                ? 'Acceso instantáneo, sin conexión y con atajo rápido para tus gastos diarios.'
-                : 'Instalá la app en tu computadora para acceso rápido en ventana propia.'}
-            </p>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+              <button type="button" onClick={handleInstallApp} className="calm-btn-secondary flex-1 sm:flex-initial">
+                <i className="pi pi-download text-xs" aria-hidden="true"></i>
+                <span>Instalar app</span>
+              </button>
+
+              {isMobile && (
+                <button type="button" onClick={handleInstallWidget} className="calm-btn-secondary flex-1 sm:flex-initial">
+                  <i className="pi pi-th-large text-xs" aria-hidden="true"></i>
+                  <span>Widget</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={handleDismiss}
+                className="w-10 h-10 rounded-input flex items-center justify-center text-muted hover:text-ink hover:bg-paper-3 transition-colors cursor-pointer shrink-0 ml-auto sm:ml-0"
+                title="Cancelar aviso"
+                aria-label="Cancelar aviso"
+              >
+                <i className="pi pi-times text-xs" aria-hidden="true"></i>
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Action Buttons: Pill shapes per CALM / KIT Study */}
-        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 pt-1 sm:pt-0">
-          <button
-            type="button"
-            onClick={handleInstallApp}
-            className="flex-1 sm:flex-initial calm-btn-primary py-2 px-4 text-xs"
-          >
-            <i className="pi pi-download text-xs"></i>
-            <span>Instalar App</span>
-          </button>
-
-          {isMobile && (
-            <button
-              type="button"
-              onClick={handleInstallWidget}
-              className="flex-1 sm:flex-initial calm-btn-secondary py-2 px-3.5 text-xs"
-            >
-              <i className="pi pi-th-large text-xs text-[#D46743]"></i>
-              <span>Widget</span>
-            </button>
+          {/* iOS Step-by-Step popup guide if user taps 'Instalar App' on Safari */}
+          {showIosGuide && (
+            <div className="mt-3 pt-3 border-t border-rule text-sm text-ink space-y-2">
+              <p className="font-semibold flex items-center gap-1.5">
+                <i className="pi pi-info-circle text-accent"></i>
+                <span>Para instalar en Safari (iOS):</span>
+              </p>
+              <ol className="list-decimal list-inside space-y-1 text-sm text-ink-2">
+                <li>Tocá el botón <strong>Compartir</strong> en la barra inferior de Safari (icono de cuadrado con flecha).</li>
+                <li>Deslizá hacia abajo y seleccioná <strong>&quot;Añadir a la pantalla de inicio&quot;</strong>.</li>
+                <li>Tocá <strong>&quot;Añadir&quot;</strong> en la esquina superior derecha.</li>
+              </ol>
+              <button
+                type="button"
+                onClick={() => setShowIosGuide(false)}
+                className="text-sm font-medium text-accent hover:underline"
+              >
+                Entendido
+              </button>
+            </div>
           )}
-
-          <button
-            type="button"
-            onClick={() => setIsDismissed(true)}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-[#6B5547] hover:text-[#2C211B] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer shrink-0 ml-auto sm:ml-0"
-            title="Minimizar aviso"
-            aria-label="Minimizar aviso"
-          >
-            <i className="pi pi-times text-[10px]"></i>
-          </button>
         </div>
-      </div>
+      </aside>
 
-      {/* iOS Step-by-Step popup guide if user taps 'Instalar App' on Safari */}
-      {showIosGuide && (
-        <div className="mt-3 pt-3 border-t border-[#BFE7EA] dark:border-[#1E373A] text-xs text-[#2C211B] dark:text-[#C4B1A3] space-y-2 animate-in fade-in duration-150">
-          <p className="font-semibold flex items-center gap-1.5">
-            <i className="pi pi-info-circle text-[#D46743]"></i>
-            <span>Para instalar en Safari (iOS):</span>
-          </p>
-          <ol className="list-decimal list-inside space-y-1 text-[11px] text-[#6B5547] dark:text-[#C4B1A3]">
-            <li>Tocá el botón <strong>Compartir</strong> en la barra inferior de Safari (icono de cuadrado con flecha).</li>
-            <li>Deslizá hacia abajo y seleccioná <strong>&quot;Añadir a la pantalla de inicio&quot;</strong>.</li>
-            <li>Tocá <strong>&quot;Añadir&quot;</strong> en la esquina superior derecha.</li>
-          </ol>
-          <button
-            type="button"
-            onClick={() => setShowIosGuide(false)}
-            className="text-[11px] font-semibold text-[#D46743] hover:underline"
-          >
-            Entendido
-          </button>
-        </div>
+      {!onOpenWidgetModal && (
+        <IPhoneIntegrationModal
+          isOpen={showWidgetModal}
+          onClose={() => setShowWidgetModal(false)}
+          initialTab={widgetModalTab}
+        />
       )}
-    </aside>
+    </>
   );
 };

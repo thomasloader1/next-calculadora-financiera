@@ -31,17 +31,17 @@ export const Toggle = forwardRef<HTMLLabelElement, ToggleProps>(
           aria-checked={checked}
           onClick={() => !disabled && onChange(!checked)}
           disabled={disabled}
-          className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full border-2 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-notion-accent focus:ring-offset-2 ${
-            checked ? 'bg-notion-accent border-notion-accent' : 'bg-notion-surface border-notion-border'
+          className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full border-2 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 ${
+            checked ? 'bg-accent border-accent' : 'bg-surface border-rule'
           }`}
         >
           <span
-            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform duration-200 ${
+            className={`inline-block h-3 w-3 transform rounded-full bg-surface transition-transform duration-200 ${
               checked ? 'translate-x-4' : 'translate-x-1'
             }`}
           />
         </button>
-        {label && <span className="notion-body-sm">{label}</span>}
+        {label && <span className="text-sm text-ink-2">{label}</span>}
       </label>
     );
   }

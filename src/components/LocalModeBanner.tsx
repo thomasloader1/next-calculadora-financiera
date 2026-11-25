@@ -48,47 +48,41 @@ export const LocalModeBanner: React.FC = () => {
   return (
     <aside
       role="status"
-      className="calm-card p-4 flex flex-col sm:flex-row sm:items-center gap-3 animate-in fade-in duration-200"
+      aria-label="Aviso de modo local"
+      className="border-b border-rule bg-paper-2"
     >
-      <div className="flex items-start gap-3 flex-1 min-w-0">
-        <span className="w-8 h-8 rounded-full bg-[#FDF5EC] dark:bg-[#2D1F13] text-[#E89B5B] flex items-center justify-center text-xs shrink-0">
-          <i className="pi pi-database"></i>
-        </span>
-        <div className="min-w-0">
-          <p className="text-xs font-semibold text-[#2C211B] dark:text-white">Modo local: tus datos están solo en este dispositivo</p>
-          <p className="text-[11px] text-[#6B5547] dark:text-[#C4B1A3] leading-relaxed">
-            Si borrás los datos del navegador se pierden. Descargá un backup
-            {cloudAvailable ? ' o iniciá sesión con Google para sincronizarlos.' : '.'}
-          </p>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-2.5 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <i className="pi pi-database text-sm text-muted mt-1" aria-hidden="true"></i>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-ink">Modo local: tus datos están solo en este dispositivo</p>
+            <p className="text-sm text-muted">
+              Si borrás los datos del navegador se pierden. Descargá un backup
+              {cloudAvailable ? ' o iniciá sesión con Google para sincronizarlos.' : '.'}
+            </p>
+          </div>
         </div>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <button
-          type="button"
-          onClick={handleBackup}
-          className="calm-btn-secondary px-3 py-1.5 text-xs inline-flex items-center gap-1.5 cursor-pointer"
-        >
-          <i className="pi pi-download text-xs"></i>
-          <span>Backup</span>
-        </button>
-        {cloudAvailable && (
+        <div className="flex items-center gap-2 shrink-0">
+          <button type="button" onClick={handleBackup} className="calm-btn-secondary">
+            <i className="pi pi-download text-xs" aria-hidden="true"></i>
+            <span>Backup</span>
+          </button>
+          {cloudAvailable && (
+            <button type="button" onClick={loginWithGoogle} className="calm-btn-secondary">
+              <i className="pi pi-google text-xs" aria-hidden="true"></i>
+              <span>Sincronizar</span>
+            </button>
+          )}
           <button
             type="button"
-            onClick={loginWithGoogle}
-            className="calm-btn-primary px-3 py-1.5 text-xs inline-flex items-center gap-1.5 cursor-pointer"
+            onClick={handleDismiss}
+            title="Cancelar aviso"
+            aria-label="Cancelar aviso"
+            className="w-10 h-10 rounded-input flex items-center justify-center text-muted hover:text-ink hover:bg-paper-3 transition-colors cursor-pointer shrink-0 ml-auto sm:ml-0"
           >
-            <i className="pi pi-google text-xs"></i>
-            <span>Sincronizar</span>
+            <i className="pi pi-times text-xs" aria-hidden="true"></i>
           </button>
-        )}
-        <button
-          type="button"
-          onClick={handleDismiss}
-          aria-label="Ocultar aviso"
-          className="w-7 h-7 rounded-full flex items-center justify-center text-[#9E8575] hover:bg-[#FFEAD3] dark:hover:bg-[#261F1A] cursor-pointer"
-        >
-          <i className="pi pi-times text-[10px]"></i>
-        </button>
+        </div>
       </div>
     </aside>
   );

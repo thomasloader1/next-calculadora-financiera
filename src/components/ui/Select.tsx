@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Listbox, Transition } from '@headlessui/react';
-import { Fragment } from 'react';
+import { Listbox, ListboxButton, ListboxOptions, ListboxOption, Label } from '@headlessui/react';
 
 interface SelectOption {
   key: string;
@@ -16,6 +15,8 @@ interface SelectProps {
   options: SelectOption[];
   placeholder?: string;
   className?: string;
+  /** Error message; marks the field invalid and is announced to screen readers */
+  error?: string | null;
 }
 
 export const Select: React.FC<SelectProps> = ({
@@ -25,57 +26,53 @@ export const Select: React.FC<SelectProps> = ({
   options,
   placeholder = 'Seleccione...',
   className = '',
+  error,
 }) => {
+  const errorId = React.useId();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
-      {label && (
-        <label className="text-xs font-semibold text-[#5F6F63] dark:text-[#A3B4A5]">{label}</label>
-      )}
       <Listbox value={value || ''} onChange={onChange}>
         {({ open }) => (
-          <div className="relative">
-            <button
-              type="button"
+          <div className="relative flex flex-col gap-1.5">
+            {label && (
+              <Label className="text-sm font-medium text-ink-2">{label}</Label>
+            )}
+            <ListboxButton
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? errorId : undefined}
               className="calm-input w-full text-left flex items-center justify-between cursor-pointer"
             >
-              <span className={value ? 'text-[#232B25] dark:text-white font-medium' : 'text-[#8A9A8E]'}>
+              <span className={value ? 'text-ink font-medium' : 'text-muted'}>
                 {value ? options.find(o => o.key === value)?.label : placeholder}
               </span>
-              <svg
-                className={`w-4 h-4 text-[#8A9A8E] transition-transform ${open ? 'rotate-180' : ''}`}
+              <svg aria-hidden="true"
+                className={`w-4 h-4 text-muted transition-transform ${open ? 'rotate-180' : ''}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
-            </button>
-            <Transition
-              show={open}
-              as={Fragment}
-              enter="transition ease-out duration-100"
-              enterFrom="transform opacity-0 scale-95"
-              enterTo="transform opacity-100 scale-100"
-              leave="transition ease-in duration-75"
-              leaveFrom="transform opacity-100 scale-100"
-              leaveTo="transform opacity-0 scale-95"
+            </ListboxButton>
+            <ListboxOptions
+              transition
+              className="absolute top-full z-50 mt-1 w-full max-h-60 overflow-auto rounded-card border border-rule bg-surface shadow-lift p-1.5 focus:outline-none origin-top transition duration-micro ease-out data-[closed]:opacity-0 data-[closed]:scale-95"
             >
-              <div className="absolute z-20 mt-1 w-full max-h-60 overflow-auto rounded-2xl border border-[#E8E2D8] dark:border-[#2A362D] bg-[#FAF8F5] dark:bg-[#1E2720] shadow-xl p-1.5">
                 {options.map((option) => (
-                  <Listbox.Option key={option.key} value={option.key} className={({ selected, active }) => (
-                    `relative cursor-pointer select-none py-2 px-3 rounded-xl text-xs font-medium transition-colors ${
-                      selected ? 'bg-[#FCEEE9] text-[#D46743] dark:bg-[#301C15] dark:text-[#E28669] font-bold' : 'text-[#2C211B] dark:text-white'
-                    } ${active && !selected ? 'bg-[#F4EFE8] dark:bg-[#2A362D]' : ''}`
+                  <ListboxOption key={option.key} value={option.key} className={({ selected, focus }) => (
+                    `relative cursor-pointer select-none py-2.5 pl-9 pr-3 rounded-input text-sm font-medium transition-colors ${
+                      selected ? 'bg-paper-3 text-accent font-bold' : 'text-ink'
+                    } ${focus && !selected ? 'bg-paper-2' : ''}`
                   )}>
                     {({ selected }) => (
                       <>
                         <span className="block truncate">{option.label}</span>
                         {selected && (
-                          <svg
-                            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-notion-badge-fg"
+                          <svg aria-hidden="true"
+                            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-2"
                             fill="currentColor"
                             viewBox="0 0 20 20"
                           >
@@ -84,10 +81,15 @@ export const Select: React.FC<SelectProps> = ({
                         )}
                       </>
                     )}
-                  </Listbox.Option>
+                  </ListboxOption>
                 ))}
-              </div>
-            </Transition>
+            </ListboxOptions>
+            {error && (
+              <p id={errorId} role="alert" className="flex items-start gap-1.5 text-sm text-error">
+                <i className="pi pi-exclamation-circle text-xs mt-1" aria-hidden="true"></i>
+                <span>{error}</span>
+              </p>
+            )}
           </div>
         )}
       </Listbox>

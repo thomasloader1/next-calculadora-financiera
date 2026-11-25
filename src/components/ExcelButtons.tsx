@@ -235,92 +235,92 @@ export const ExcelButtons: React.FC<{ showExport?: boolean }> = ({ showExport = 
             disabled={!cash}
             className="calm-btn-secondary px-3 py-1.5 text-xs inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            <i className="pi pi-download text-xs text-[#D46743]"></i>
+            <i className="pi pi-download text-xs text-accent"></i>
             <span>Exportar</span>
-            <i className={`pi pi-chevron-down text-[9px] text-[#9E8575] transition-transform ${isExportOpen ? 'rotate-180' : ''}`}></i>
+            <i className={`pi pi-chevron-down text-xs text-muted transition-transform ${isExportOpen ? 'rotate-180' : ''}`}></i>
           </button>
 
           {isExportOpen && (
-            <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-[#1E1814] border border-[#F0D7BC] dark:border-[#3A2E25] rounded-2xl shadow-lg py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
-              <div className="px-3.5 py-1.5 text-[10px] font-bold text-[#9E8575] uppercase tracking-wider border-b border-[#F0D7BC]/60 dark:border-[#3A2E25] mb-1">
+            <div className="absolute right-0 mt-2 w-64 bg-surface border border-rule rounded-card shadow-lg py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+              <div className="px-3.5 py-1.5 text-xs font-bold text-muted border-b border-rule/60 mb-1">
                 Opciones de exportación
               </div>
               <button
                 type="button"
                 onClick={handleExportExcel}
-                className="w-full text-left px-3.5 py-2 text-xs text-[#2C211B] dark:text-[#FDF6F0] hover:bg-[#FFEAD3] dark:hover:bg-[#261F1A] flex items-center gap-2.5 transition-colors cursor-pointer"
+                className="w-full text-left px-3.5 py-2 text-xs text-ink hover:bg-paper-3 flex items-center gap-2.5 transition-colors cursor-pointer"
               >
-                <div className="w-6 h-6 rounded-lg bg-[#FDF5EC] dark:bg-[#2D1F13] text-[#E89B5B] flex items-center justify-center shrink-0">
+                <div className="w-6 h-6 rounded-input bg-paper-3 text-ink-2 flex items-center justify-center shrink-0">
                   <i className="pi pi-file-excel text-xs"></i>
                 </div>
                 <div className="flex flex-col">
                   <span className="font-semibold">Excel (.xlsx)</span>
-                  <span className="text-[10px] text-[#9E8575]">Libro con fórmulas y categorías</span>
+                  <span className="text-xs text-muted">Libro con fórmulas y categorías</span>
                 </div>
               </button>
               <button
                 type="button"
                 onClick={handleExportCSV}
-                className="w-full text-left px-3.5 py-2 text-xs text-[#2C211B] dark:text-[#FDF6F0] hover:bg-[#FFEAD3] dark:hover:bg-[#261F1A] flex items-center gap-2.5 transition-colors cursor-pointer"
+                className="w-full text-left px-3.5 py-2 text-xs text-ink hover:bg-paper-3 flex items-center gap-2.5 transition-colors cursor-pointer"
               >
-                <div className="w-6 h-6 rounded-lg bg-[#EDF9FA] dark:bg-[#132426] text-[#2A8187] flex items-center justify-center shrink-0">
+                <div className="w-6 h-6 rounded-input bg-paper-2 text-accent flex items-center justify-center shrink-0">
                   <i className="pi pi-file text-xs"></i>
                 </div>
                 <div className="flex flex-col">
                   <span className="font-semibold">Spreadsheet / CSV (.csv)</span>
-                  <span className="text-[10px] text-[#9E8575]">Para Google Sheets y Numbers</span>
+                  <span className="text-xs text-muted">Para Google Sheets y Numbers</span>
                 </div>
               </button>
               <button
                 type="button"
                 onClick={handleCopySpreadsheet}
-                className="w-full text-left px-3.5 py-2 text-xs text-[#2C211B] dark:text-[#FDF6F0] hover:bg-[#FFEAD3] dark:hover:bg-[#261F1A] flex items-center gap-2.5 transition-colors cursor-pointer"
+                className="w-full text-left px-3.5 py-2 text-xs text-ink hover:bg-paper-3 flex items-center gap-2.5 transition-colors cursor-pointer"
               >
-                <div className="w-6 h-6 rounded-lg bg-[#FCEEE9] dark:bg-[#301C15] text-[#D46743] flex items-center justify-center shrink-0">
+                <div className="w-6 h-6 rounded-input bg-paper-3 text-accent flex items-center justify-center shrink-0">
                   <i className="pi pi-copy text-xs"></i>
                 </div>
                 <div className="flex flex-col">
                   <span className="font-semibold">Copiar para Google Sheets</span>
-                  <span className="text-[10px] text-[#9E8575]">Listo para pegar directo (Ctrl+V)</span>
+                  <span className="text-xs text-muted">Listo para pegar directo (Ctrl+V)</span>
                 </div>
               </button>
-              <div className="border-t border-[#F0D7BC]/60 dark:border-[#3A2E25] my-1.5"></div>
-              <div className="px-3.5 py-1 text-[10px] font-bold text-[#9E8575] uppercase tracking-wider">
+              <div className="border-t border-rule/60 my-1.5"></div>
+              <div className="px-3.5 py-1 text-xs font-bold text-muted">
                 Todos los meses
               </div>
               <button
                 type="button"
                 onClick={handleExportAllExcel}
-                className="w-full text-left px-3.5 py-2 text-xs text-[#2C211B] dark:text-[#FDF6F0] hover:bg-[#FFEAD3] dark:hover:bg-[#261F1A] flex items-center gap-2.5 transition-colors cursor-pointer"
+                className="w-full text-left px-3.5 py-2 text-xs text-ink hover:bg-paper-3 flex items-center gap-2.5 transition-colors cursor-pointer"
               >
-                <div className="w-6 h-6 rounded-lg bg-[#FDF5EC] dark:bg-[#2D1F13] text-[#E89B5B] flex items-center justify-center shrink-0">
+                <div className="w-6 h-6 rounded-input bg-paper-3 text-ink-2 flex items-center justify-center shrink-0">
                   <i className="pi pi-table text-xs"></i>
                 </div>
                 <div className="flex flex-col">
                   <span className="font-semibold">Exportar todo (.xlsx)</span>
-                  <span className="text-[10px] text-[#9E8575]">Una hoja por mes + resumen</span>
+                  <span className="text-xs text-muted">Una hoja por mes + resumen</span>
                 </div>
               </button>
               <button
                 type="button"
                 onClick={handleExportBackup}
-                className="w-full text-left px-3.5 py-2 text-xs text-[#2C211B] dark:text-[#FDF6F0] hover:bg-[#FFEAD3] dark:hover:bg-[#261F1A] flex items-center gap-2.5 transition-colors cursor-pointer"
+                className="w-full text-left px-3.5 py-2 text-xs text-ink hover:bg-paper-3 flex items-center gap-2.5 transition-colors cursor-pointer"
               >
-                <div className="w-6 h-6 rounded-lg bg-[#EDF9FA] dark:bg-[#132426] text-[#2A8187] flex items-center justify-center shrink-0">
+                <div className="w-6 h-6 rounded-input bg-paper-2 text-accent flex items-center justify-center shrink-0">
                   <i className="pi pi-database text-xs"></i>
                 </div>
                 <div className="flex flex-col">
                   <span className="font-semibold">Backup completo (.json)</span>
-                  <span className="text-[10px] text-[#9E8575]">Para restaurar en otro dispositivo</span>
+                  <span className="text-xs text-muted">Para restaurar en otro dispositivo</span>
                 </div>
               </button>
-              <div className="border-t border-[#F0D7BC]/60 dark:border-[#3A2E25] my-1.5"></div>
+              <div className="border-t border-rule/60 my-1.5"></div>
               <button
                 type="button"
                 onClick={handleOpenGoogleSheets}
-                className="w-full text-left px-3.5 py-1.5 text-xs text-[#9E8575] hover:text-[#2C211B] dark:hover:text-white hover:bg-[#FFEAD3] dark:hover:bg-[#261F1A] flex items-center gap-2 transition-colors cursor-pointer"
+                className="w-full text-left px-3.5 py-1.5 text-xs text-muted hover:text-ink hover:bg-paper-3 flex items-center gap-2 transition-colors cursor-pointer"
               >
-                <i className="pi pi-external-link text-[11px]"></i>
+                <i className="pi pi-external-link text-xs"></i>
                 <span>Crear Sheet nuevo (sheets.new)</span>
               </button>
             </div>
@@ -338,31 +338,31 @@ export const ExcelButtons: React.FC<{ showExport?: boolean }> = ({ showExport = 
           }}
           className="calm-btn-secondary px-3 py-1.5 text-xs inline-flex items-center gap-1.5 cursor-pointer"
         >
-          <i className="pi pi-upload text-xs text-[#9E8575]"></i>
+          <i className="pi pi-upload text-xs text-muted"></i>
           <span>Importar</span>
-          <i className={`pi pi-chevron-down text-[9px] text-[#9E8575] transition-transform ${isImportOpen ? 'rotate-180' : ''}`}></i>
+          <i className={`pi pi-chevron-down text-xs text-muted transition-transform ${isImportOpen ? 'rotate-180' : ''}`}></i>
         </button>
 
         {isImportOpen && (
-          <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-[#1E1814] border border-[#F0D7BC] dark:border-[#3A2E25] rounded-2xl shadow-lg py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+          <div className="absolute right-0 mt-2 w-72 bg-surface border border-rule rounded-card shadow-lg py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
             {/* Header: Plantillas */}
-            <div className="px-3.5 py-1.5 text-[10px] font-bold text-[#D46743] uppercase tracking-wider border-b border-[#F0D7BC]/60 dark:border-[#3A2E25] mb-1 flex items-center justify-between">
+            <div className="px-3.5 py-1.5 text-xs font-bold text-accent border-b border-rule/60 mb-1 flex items-center justify-between">
               <span>Plantillas para Importar</span>
-              <span className="text-[9px] bg-[#FFEAD3] text-[#D46743] dark:bg-[#301C15] dark:text-[#E28669] px-1.5 py-0.5 rounded-full font-mono">50/30/20</span>
+              <span className="text-xs bg-paper-3 text-accent px-1.5 py-0.5 rounded-full font-mono">50/30/20</span>
             </div>
 
             {/* Action 1: Descargar plantilla Excel */}
             <button
               type="button"
               onClick={handleDownloadExcelTemplate}
-              className="w-full text-left px-3.5 py-2 text-xs text-[#2C211B] dark:text-[#FDF6F0] hover:bg-[#FFEAD3] dark:hover:bg-[#261F1A] flex items-center gap-2.5 transition-colors cursor-pointer"
+              className="w-full text-left px-3.5 py-2 text-xs text-ink hover:bg-paper-3 flex items-center gap-2.5 transition-colors cursor-pointer"
             >
-              <div className="w-6 h-6 rounded-lg bg-[#FCEEE9] dark:bg-[#301C15] text-[#D46743] flex items-center justify-center shrink-0">
+              <div className="w-6 h-6 rounded-input bg-paper-3 text-accent flex items-center justify-center shrink-0">
                 <i className="pi pi-file-excel text-xs"></i>
               </div>
               <div className="flex flex-col">
                 <span className="font-semibold">Plantilla Excel (.xlsx)</span>
-                <span className="text-[10px] text-[#9E8575]">Con Necesidades, Imprevistos y Ahorro</span>
+                <span className="text-xs text-muted">Con Necesidades, Imprevistos y Ahorro</span>
               </div>
             </button>
 
@@ -370,14 +370,14 @@ export const ExcelButtons: React.FC<{ showExport?: boolean }> = ({ showExport = 
             <button
               type="button"
               onClick={handleDownloadCSVTemplate}
-              className="w-full text-left px-3.5 py-2 text-xs text-[#2C211B] dark:text-[#FDF6F0] hover:bg-[#FFEAD3] dark:hover:bg-[#261F1A] flex items-center gap-2.5 transition-colors cursor-pointer"
+              className="w-full text-left px-3.5 py-2 text-xs text-ink hover:bg-paper-3 flex items-center gap-2.5 transition-colors cursor-pointer"
             >
-              <div className="w-6 h-6 rounded-lg bg-[#EDF9FA] dark:bg-[#132426] text-[#2A8187] flex items-center justify-center shrink-0">
+              <div className="w-6 h-6 rounded-input bg-paper-2 text-accent flex items-center justify-center shrink-0">
                 <i className="pi pi-file text-xs"></i>
               </div>
               <div className="flex flex-col">
                 <span className="font-semibold">Plantilla CSV (.csv)</span>
-                <span className="text-[10px] text-[#9E8575]">Compatible con Google Sheets y Numbers</span>
+                <span className="text-xs text-muted">Compatible con Google Sheets y Numbers</span>
               </div>
             </button>
 
@@ -388,14 +388,14 @@ export const ExcelButtons: React.FC<{ showExport?: boolean }> = ({ showExport = 
                 setIsImportOpen(false);
                 setShowTemplateModal(true);
               }}
-              className="w-full text-left px-3.5 py-1.5 text-xs text-[#9E8575] hover:text-[#2C211B] dark:hover:text-white hover:bg-[#FFEAD3] dark:hover:bg-[#261F1A] flex items-center gap-2 transition-colors cursor-pointer"
+              className="w-full text-left px-3.5 py-1.5 text-xs text-muted hover:text-ink hover:bg-paper-3 flex items-center gap-2 transition-colors cursor-pointer"
             >
-              <i className="pi pi-info-circle text-[11px] text-[#E89B5B]"></i>
+              <i className="pi pi-info-circle text-xs text-muted" aria-hidden="true"></i>
               <span>Ver estructura de columnas y campos</span>
             </button>
 
             {/* Divider */}
-            <div className="border-t border-[#F0D7BC]/60 dark:border-[#3A2E25] my-1.5"></div>
+            <div className="border-t border-rule/60 my-1.5"></div>
 
             {/* Action 4: Subir archivo */}
             <div className="px-3.5 py-1">
@@ -405,7 +405,7 @@ export const ExcelButtons: React.FC<{ showExport?: boolean }> = ({ showExport = 
                   setIsImportOpen(false);
                   fileInputRef.current?.click();
                 }}
-                className="w-full calm-btn-primary py-2 text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                className="w-full calm-btn-primary py-2 text-xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <i className="pi pi-upload text-xs"></i>
                 <span>Subir archivo (.xlsx, .csv)</span>
@@ -416,9 +416,9 @@ export const ExcelButtons: React.FC<{ showExport?: boolean }> = ({ showExport = 
                   setIsImportOpen(false);
                   backupInputRef.current?.click();
                 }}
-                className="w-full mt-1.5 text-left px-0 py-1.5 text-xs text-[#9E8575] hover:text-[#2C211B] dark:hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
+                className="w-full mt-1.5 text-left px-0 py-1.5 text-xs text-muted hover:text-ink flex items-center gap-2 transition-colors cursor-pointer"
               >
-                <i className="pi pi-history text-[11px] text-[#2A8187]"></i>
+                <i className="pi pi-history text-xs text-accent"></i>
                 <span>Restaurar backup completo (.json)</span>
               </button>
             </div>
@@ -448,14 +448,14 @@ export const ExcelButtons: React.FC<{ showExport?: boolean }> = ({ showExport = 
         title="Plantilla de Importación de Gastos"
       >
         <div className="space-y-4">
-          <p className="text-xs text-[#6B5547] dark:text-[#C4B1A3] leading-relaxed">
+          <p className="text-xs text-muted leading-relaxed">
             Podés armar tu archivo en <strong>Excel</strong> o <strong>Google Sheets</strong> con las siguientes 4 columnas para que la app clasifique automáticamente cada gasto en la categoría correcta:
           </p>
 
           {/* Table preview */}
-          <div className="overflow-x-auto rounded-2xl border border-[#F0D7BC] dark:border-[#3A2E25] bg-white dark:bg-[#1E1814]">
+          <div className="overflow-x-auto rounded-card border border-rule bg-surface">
             <table className="w-full text-left text-xs">
-              <thead className="bg-[#FFEAD3] dark:bg-[#261F1A] border-b border-[#F0D7BC] dark:border-[#3A2E25] text-[#6B5547] font-bold uppercase tracking-wider text-[10px]">
+              <thead className="bg-paper-3 border-b border-rule text-muted font-bold text-xs">
                 <tr>
                   <th className="p-3">Categoría</th>
                   <th className="p-3">Descripción</th>
@@ -463,54 +463,54 @@ export const ExcelButtons: React.FC<{ showExport?: boolean }> = ({ showExport = 
                   <th className="p-3">Moneda</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#F0D7BC]/60 dark:divide-[#3A2E25] text-[11px] font-mono">
-                <tr className="hover:bg-[#FFEAD3]/20">
-                  <td className="p-3 font-semibold text-[#D46743]">Necesidades</td>
-                  <td className="p-3 text-[#2C211B] dark:text-white font-sans">Alquiler departamento</td>
+              <tbody className="divide-y divide-rule/60 text-xs font-mono">
+                <tr className="hover:bg-paper-3/20">
+                  <td className="p-3 font-semibold text-accent">Necesidades</td>
+                  <td className="p-3 text-ink font-sans">Alquiler departamento</td>
                   <td className="p-3 font-bold">$180.000</td>
-                  <td className="p-3 text-[#9E8575]">ARS</td>
+                  <td className="p-3 text-muted">ARS</td>
                 </tr>
-                <tr className="hover:bg-[#FFEAD3]/20">
-                  <td className="p-3 font-semibold text-[#D46743]">Necesidades</td>
-                  <td className="p-3 text-[#2C211B] dark:text-white font-sans">Supermercado mensual</td>
+                <tr className="hover:bg-paper-3/20">
+                  <td className="p-3 font-semibold text-accent">Necesidades</td>
+                  <td className="p-3 text-ink font-sans">Supermercado mensual</td>
                   <td className="p-3 font-bold">$95.000</td>
-                  <td className="p-3 text-[#9E8575]">ARS</td>
+                  <td className="p-3 text-muted">ARS</td>
                 </tr>
-                <tr className="hover:bg-[#FFEAD3]/20">
-                  <td className="p-3 font-semibold text-[#C47535]">Imprevistos</td>
-                  <td className="p-3 text-[#2C211B] dark:text-white font-sans">Cena con amigos / Salida</td>
+                <tr className="hover:bg-paper-3/20">
+                  <td className="p-3 font-medium text-ink">Imprevistos</td>
+                  <td className="p-3 text-ink font-sans">Cena con amigos / Salida</td>
                   <td className="p-3 font-bold">$25.000</td>
-                  <td className="p-3 text-[#9E8575]">ARS</td>
+                  <td className="p-3 text-muted">ARS</td>
                 </tr>
-                <tr className="hover:bg-[#FFEAD3]/20">
-                  <td className="p-3 font-semibold text-[#C47535]">Imprevistos</td>
-                  <td className="p-3 text-[#2C211B] dark:text-white font-sans">Arreglo imprevisto auto</td>
+                <tr className="hover:bg-paper-3/20">
+                  <td className="p-3 font-medium text-ink">Imprevistos</td>
+                  <td className="p-3 text-ink font-sans">Arreglo imprevisto auto</td>
                   <td className="p-3 font-bold">$42.000</td>
-                  <td className="p-3 text-[#9E8575]">ARS</td>
+                  <td className="p-3 text-muted">ARS</td>
                 </tr>
-                <tr className="hover:bg-[#FFEAD3]/20">
-                  <td className="p-3 font-semibold text-[#2A8187] dark:text-[#BFE7EA]">Ahorro</td>
-                  <td className="p-3 text-[#2C211B] dark:text-white font-sans">Fondo de emergencia</td>
+                <tr className="hover:bg-paper-3/20">
+                  <td className="p-3 font-semibold text-accent">Ahorro</td>
+                  <td className="p-3 text-ink font-sans">Fondo de emergencia</td>
                   <td className="p-3 font-bold">$50.000</td>
-                  <td className="p-3 text-[#9E8575]">ARS</td>
+                  <td className="p-3 text-muted">ARS</td>
                 </tr>
-                <tr className="hover:bg-[#FFEAD3]/20">
-                  <td className="p-3 font-semibold text-[#2A8187] dark:text-[#BFE7EA]">Ahorro</td>
-                  <td className="p-3 text-[#2C211B] dark:text-white font-sans">Compra dólares ahorro</td>
+                <tr className="hover:bg-paper-3/20">
+                  <td className="p-3 font-semibold text-accent">Ahorro</td>
+                  <td className="p-3 text-ink font-sans">Compra dólares ahorro</td>
                   <td className="p-3 font-bold">$100</td>
-                  <td className="p-3 text-[#2A8187] font-bold">USD</td>
+                  <td className="p-3 text-accent font-bold">USD</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
           {/* Tips */}
-          <div className="p-3.5 bg-[#EDF9FA] dark:bg-[#132426] border border-[#BFE7EA] dark:border-[#1E373A] rounded-2xl space-y-1.5 text-xs text-[#2C211B] dark:text-[#C4B1A3]">
-            <p className="font-semibold text-[#2A8187] dark:text-[#BFE7EA] flex items-center gap-1.5">
+          <div className="p-3.5 bg-paper-2 border border-accent-soft rounded-card space-y-1.5 text-xs text-ink">
+            <p className="font-semibold text-accent flex items-center gap-1.5">
               <i className="pi pi-check-circle"></i>
               <span>Consejo de importación:</span>
             </p>
-            <p className="text-[11px] leading-relaxed">
+            <p className="text-xs leading-relaxed">
               También podés usar un archivo con <strong>hojas separadas</strong> llamadas <em>&quot;Necesidades&quot;</em>, <em>&quot;Imprevistos&quot;</em> y <em>&quot;Ahorro&quot;</em>. La app reconoce ambos formatos automáticamente.
             </p>
           </div>
@@ -520,7 +520,7 @@ export const ExcelButtons: React.FC<{ showExport?: boolean }> = ({ showExport = 
             <button
               type="button"
               onClick={handleDownloadExcelTemplate}
-              className="w-full sm:flex-1 calm-btn-primary py-2.5 text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+              className="w-full sm:flex-1 calm-btn-primary py-2.5 text-xs flex items-center justify-center gap-2 cursor-pointer"
             >
               <i className="pi pi-file-excel text-xs"></i>
               <span>Descargar Plantilla Excel (.xlsx)</span>

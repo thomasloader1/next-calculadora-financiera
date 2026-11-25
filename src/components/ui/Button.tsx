@@ -21,7 +21,7 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'h-9 text-xs px-3.5 gap-1.5',
+  sm: 'h-9 text-sm px-3 gap-1.5',
   md: 'h-11 text-sm px-5 gap-2',
   lg: 'h-12 text-base px-6 gap-2.5',
 };
@@ -60,6 +60,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       >
         {isLoading ? (
           <svg
+            aria-hidden="true"
             className="animate-spin h-4 w-4"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"

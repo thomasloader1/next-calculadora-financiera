@@ -62,26 +62,26 @@ const MonthSelector: React.FC<MonthSelectorProps> = ({ isLoading = false }) => {
     };
 
     return (
-        <div className="flex items-center gap-1 bg-[#FFEAD3] dark:bg-[#261F1A] p-1 rounded-full border border-[#F0D7BC] dark:border-[#3A2E25] shadow-2xs">
+        <div className="flex items-center gap-1 bg-paper-3 p-1 rounded-input">
             <button
                 type="button"
                 onClick={handlePrev}
                 disabled={!canGoPrev || isLoading}
-                className="w-7 h-7 rounded-full flex items-center justify-center text-[#6B5547] hover:text-[#2C211B] dark:text-[#C4B1A3] dark:hover:text-white hover:bg-white dark:hover:bg-[#3A2E25] hover:shadow-xs transition-all disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
+                className="w-9 h-9 rounded-input flex items-center justify-center text-ink-2 hover:text-ink hover:bg-surface transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 title="Mes anterior"
                 aria-label="Mes anterior"
             >
-                <i className="pi pi-chevron-left text-[10px]"></i>
+                <i className="pi pi-chevron-left text-xs" aria-hidden="true"></i>
             </button>
             {isLoading ? (
-                <span className="font-semibold text-xs min-w-[120px] text-center">
-                    <span className="inline-block h-3.5 w-20 bg-[#F0D7BC] dark:bg-[#3A2E25] rounded-md animate-pulse" />
+                <span className="min-w-[132px] text-center">
+                    <span className="inline-block h-3.5 w-20 bg-rule rounded-md animate-pulse" />
                 </span>
             ) : (
-                <span className="font-semibold text-xs sm:text-sm min-w-[120px] text-center text-[#2C211B] dark:text-white tabular-nums tracking-tight flex items-center justify-center gap-1.5 px-2">
+                <span className="font-medium text-sm min-w-[132px] text-center text-ink tabular-nums flex items-center justify-center gap-1.5 px-2 whitespace-nowrap">
                     {formatMonth(year, monthIndex)}
                     {isSaving && (
-                        <svg className="animate-spin h-3 w-3 text-[#D46743]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <svg aria-hidden="true" className="animate-spin h-3 w-3 text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
@@ -92,11 +92,11 @@ const MonthSelector: React.FC<MonthSelectorProps> = ({ isLoading = false }) => {
                 type="button"
                 onClick={handleNext}
                 disabled={!canGoNext || isLoading}
-                className="w-7 h-7 rounded-full flex items-center justify-center text-[#6B5547] hover:text-[#2C211B] dark:text-[#C4B1A3] dark:hover:text-white hover:bg-white dark:hover:bg-[#3A2E25] hover:shadow-xs transition-all disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
+                className="w-9 h-9 rounded-input flex items-center justify-center text-ink-2 hover:text-ink hover:bg-surface transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 title="Mes siguiente"
                 aria-label="Mes siguiente"
             >
-                <i className="pi pi-chevron-right text-[10px]"></i>
+                <i className="pi pi-chevron-right text-xs" aria-hidden="true"></i>
             </button>
         </div>
     );

@@ -1,0 +1,26 @@
+[
+ {
+  "mode": "redesign",
+  "depth": "full",
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "dose",
+  "axes": "light/grotesk-sans/chromatic-green",
+  "nav": "kept shell: top bar + phone tab bar",
+  "footer": "shortcut row",
+  "imagery": "none",
+  "photos": [],
+  "signature": "the month as three plastic compartments",
+  "sections": [
+   "summary",
+   "compartments",
+   "split",
+   "incomes",
+   "transfers",
+   "tools"
+  ],
+  "waived": [],
+  "prompt": "personal budget app splitting income into needs, wants and savings",
+  "date": "2026-11-24"
+ }
+]

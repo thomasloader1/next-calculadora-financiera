@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useExpenseContext } from '@/context/Expense/ExpenseContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { formatAmount, parseMaskedAmount } from '@/lib/formatAmount';
 import { getRate, RateSource, DollarRate } from '@/lib/exchangeRate';
+import { parseAmount, validateAmount, validateDescription, validateRate, MAX_DESCRIPTION } from '@/lib/validation';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
+import { toast } from 'sonner';
 
 const RATE_OPTIONS = [
   { key: 'oficial', label: 'Oficial' },
@@ -14,10 +17,16 @@ const RATE_OPTIONS = [
   { key: 'custom', label: 'Personalizado' },
 ];
 
-const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
+interface IncomeFormProps {
+  onAdded?: () => void;
+  compact?: boolean;
+}
+
+const IncomeForm: React.FC<IncomeFormProps> = ({ onAdded, compact = false }) => {
   const { addIncome, incomes, globalSplit } = useExpenseContext();
-  const nextIdRef = useRef(incomes.length + 1);
-  const [description, setDescription] = useState(`Ingreso ${nextIdRef.current}`);
+  const [description, setDescription] = useState(() =>
+    incomes.length === 0 ? 'Sueldo' : `Ingreso ${incomes.length + 1}`
+  );
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS');
   const [rateSource, setRateSource] = useState<RateSource>('oficial');
@@ -39,7 +48,7 @@ const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
   }, [currency, rateSource]);
 
   const effectiveRate = rateSource === 'custom'
-    ? Number(customRate) || 0
+    ? (validateRate(customRate) ? 0 : parseAmount(customRate))
     : rate?.venta || 0;
 
   const numericAmount = parseMaskedAmount(amount);
@@ -47,8 +56,17 @@ const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
     ? numericAmount * effectiveRate
     : numericAmount;
 
+  const { shown, touch, attempt, reset } = useFieldErrors<'description' | 'amount' | 'rate'>();
+  const descriptionError = validateDescription(description, { required: true });
+  const amountError = validateAmount(amount);
+  const rateFieldError = currency === 'USD' && rateSource === 'custom' ? validateRate(customRate) : null;
+
   const handleAdd = () => {
-    if (!numericAmount || numericAmount <= 0 || !description.trim()) return;
+    if (!attempt([descriptionError, amountError, rateFieldError])) return;
+    if (currency === 'USD' && effectiveRate <= 0) {
+      toast.warning(rateError || 'Esperá a que cargue la cotización del dólar.');
+      return;
+    }
 
     const inc: Parameters<typeof addIncome>[0] = {
       description: description.trim(),
@@ -62,24 +80,22 @@ const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
       inc.amount = Math.round(numericAmount * effectiveRate * 100) / 100;
       inc.rateSource = rateSource;
       if (rateSource === 'custom') {
-        inc.customRate = Number(customRate);
+        inc.customRate = effectiveRate;
       }
     }
 
     addIncome(inc);
 
-    nextIdRef.current += 1;
     setAmount('');
-    setDescription(`Ingreso ${nextIdRef.current}`);
+    setDescription(`Ingreso ${incomes.length + 2}`);
+    reset();
     onAdded?.();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey || (e.target as HTMLElement)?.tagName.toLowerCase() === 'input')) {
       e.preventDefault();
-      if (numericAmount && numericAmount > 0 && description.trim() && (currency !== 'USD' || effectiveRate > 0)) {
-        handleAdd();
-      }
+      handleAdd();
     }
   };
 
@@ -88,91 +104,86 @@ const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
     : null;
 
   return (
-    <div className="bg-white dark:bg-[#13151b] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4" onKeyDown={handleKeyDown}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="w-8 h-8 rounded-full bg-[#FCEEE9] dark:bg-[#301C15] text-[#D46743] dark:text-[#E28669] flex items-center justify-center text-xs">
-            <i className="pi pi-plus"></i>
-          </span>
-          <p className="text-sm font-bold text-slate-900 dark:text-white">Cargar Ingreso</p>
-        </div>
-        <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">
-          Regla 50/30/20 automática
-        </span>
-      </div>
+    <div className="space-y-3.5" onKeyDown={handleKeyDown}>
+      {compact ? (
+        <p className="text-sm font-medium text-ink">Agregar nuevo ingreso</p>
+      ) : (
+        <p className="text-sm text-muted">
+          Ingresá tu sueldo o ingresos para dividirlos automáticamente según tu regla ({globalSplit.needs}/{globalSplit.wants}/{globalSplit.savings}%).
+        </p>
+      )}
 
-      <Input
-        label="Descripción de la fuente de ingreso"
-        value={description}
-        onChange={setDescription}
-        placeholder="Ej. Sueldo, Honorarios, Freelance..."
-      />
-
-      <div className="flex gap-2 items-end">
+      <div className={compact ? 'grid grid-cols-1 sm:grid-cols-[1fr_1.1fr] gap-2.5 items-start' : 'space-y-3.5'}>
         <Input
-          type="text"
-          inputMode="decimal"
-          label={currency === 'USD' ? 'Monto en USD' : 'Monto en ARS'}
-          value={amount}
-          onChange={setAmount}
-          placeholder="1000000"
-          prefix={<span className="text-slate-400 text-sm">{currency === 'USD' ? 'US$' : '$'}</span>}
-          description={amount !== '' && currency === 'ARS' && formatAmount(amount)}
-          className="flex-1"
+          label={compact ? 'Fuente' : 'Descripción de la fuente de ingreso'}
+          value={description}
+          onChange={setDescription}
+          onBlur={touch('description')}
+          error={shown('description', descriptionError)}
+          maxLength={MAX_DESCRIPTION + 20}
+          placeholder="Ej. Sueldo, Honorarios, Freelance…"
         />
-        <div className="flex bg-[#FFEAD3] dark:bg-[#261F1A] p-1 rounded-full h-[42px] shrink-0 border border-[#F0D7BC] dark:border-[#3A2E25]">
-          <button
-            type="button"
-            onClick={() => setCurrency('ARS')}
-            className={`px-3.5 text-xs font-semibold rounded-full transition-all cursor-pointer ${
-              currency === 'ARS'
-                ? 'bg-[#D46743] text-white shadow-xs'
-                : 'text-[#6B5547] hover:text-[#2C211B] dark:hover:text-white'
-            }`}
-          >
-            ARS
-          </button>
-          <button
-            type="button"
-            onClick={() => setCurrency('USD')}
-            className={`px-3.5 text-xs font-semibold rounded-full transition-all cursor-pointer ${
-              currency === 'USD'
-                ? 'bg-[#D46743] text-white shadow-xs'
-                : 'text-[#6B5547] hover:text-[#2C211B] dark:hover:text-white'
-            }`}
-          >
-            USD
-          </button>
+
+        <div className="flex gap-2 items-start">
+          <Input
+            type="text"
+            inputMode="decimal"
+            label={compact ? 'Monto' : currency === 'USD' ? 'Monto en USD' : 'Monto en ARS'}
+            value={amount}
+            onChange={setAmount}
+            placeholder="1000000"
+            prefix={<span className="text-muted text-sm">{currency === 'USD' ? 'US$' : '$'}</span>}
+            description={!compact && !amountError && currency === 'ARS' && numericAmount > 0 && formatAmount(numericAmount)}
+            error={shown('amount', amountError)}
+            onBlur={touch('amount')}
+            className="flex-1 min-w-0"
+          />
+          <div className="calm-segmented-container shrink-0 mt-[1.625rem]" role="group" aria-label="Moneda">
+            <button
+              type="button"
+              onClick={() => setCurrency('ARS')}
+              aria-pressed={currency === 'ARS'}
+              className={`calm-segmented-tab px-2.5 ${currency === 'ARS' ? 'calm-segmented-tab-active' : ''}`}
+            >
+              ARS
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrency('USD')}
+              aria-pressed={currency === 'USD'}
+              className={`calm-segmented-tab px-2.5 ${currency === 'USD' ? 'calm-segmented-tab-active' : ''}`}
+            >
+              USD
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Live 50/30/20 Division Preview While Typing */}
-      {effectiveTotal > 0 && (
-        <div className="p-3.5 bg-[#FAF6F0] dark:bg-[#1E1814] rounded-2xl border border-[#F0D7BC] dark:border-[#3A2E25] space-y-2 animate-in fade-in duration-150">
-          <div className="flex items-center justify-between text-[11px] font-semibold text-[#6B5547] dark:text-[#C4B1A3] uppercase tracking-wider">
-            <span>División que se aplicará:</span>
-            <span className="font-mono text-[#2C211B] dark:text-white font-bold">{formatAmount(effectiveTotal)}</span>
+      {effectiveTotal > 0 && !compact && (
+        <div className="space-y-2" aria-live="polite">
+          <div className="flex items-baseline justify-between text-sm text-muted">
+            <span>División que se aplicará</span>
+            <span className="font-medium tabular-nums text-ink">{formatAmount(effectiveTotal)}</span>
           </div>
-          <div className="grid grid-cols-3 gap-2 text-center text-xs">
-            <div className="p-2.5 bg-[#FCEEE9] dark:bg-[#301C15] rounded-xl border border-[#F4C5B5] dark:border-[#5A2C1D]">
-              <span className="text-[10px] text-[#D46743] dark:text-[#E28669] font-bold block">{globalSplit.needs}% Necesidades</span>
-              <span className="font-mono font-bold text-[#2C211B] dark:text-white text-xs">{formatAmount(effectiveTotal * (globalSplit.needs / 100))}</span>
-            </div>
-            <div className="p-2.5 bg-[#FDF5EC] dark:bg-[#2D1F13] rounded-xl border border-[#F7D2AF] dark:border-[#56361D]">
-              <span className="text-[10px] text-[#C47535] dark:text-[#EFA66C] font-bold block">{globalSplit.wants}% Imprevistos</span>
-              <span className="font-mono font-bold text-[#2C211B] dark:text-white text-xs">{formatAmount(effectiveTotal * (globalSplit.wants / 100))}</span>
-            </div>
-            <div className="p-2.5 bg-[#EDF9FA] dark:bg-[#132426] rounded-xl border border-[#BFE7EA] dark:border-[#1E373A]">
-              <span className="text-[10px] text-[#2A8187] dark:text-[#BFE7EA] font-bold block">{globalSplit.savings}% Ahorro</span>
-              <span className="font-mono font-bold text-[#2C211B] dark:text-white text-xs">{formatAmount(effectiveTotal * (globalSplit.savings / 100))}</span>
-            </div>
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              ['needs', 'Necesidades', globalSplit.needs],
+              ['wants', 'Imprevistos', globalSplit.wants],
+              ['savings', 'Ahorro', globalSplit.savings],
+            ] as const).map(([key, name, pct]) => (
+              <div key={key} className={`plastic plastic--${key} px-3 py-2.5`}>
+                <span className="block text-xs text-ink-2">{pct}% {name}</span>
+                <span className="block text-sm font-medium tabular-nums text-ink">{formatAmount(effectiveTotal * (pct / 100))}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       {/* USD Rate Selector */}
       {currency === 'USD' && (
-        <div className="space-y-2 p-3 bg-[#FAF6F0] dark:bg-[#1E1814] rounded-2xl border border-[#F0D7BC] dark:border-[#3A2E25]">
+        <div className="space-y-2 p-3 bg-paper-2 rounded-input border border-rule">
           <Select
             label="Cotización de cambio"
             value={rateSource}
@@ -182,46 +193,48 @@ const IncomeForm: React.FC<{ onAdded?: () => void }> = ({ onAdded }) => {
 
           {rateSource === 'custom' ? (
             <Input
-              type="number"
+              type="text"
+              inputMode="decimal"
               label="Cotización personalizada (ARS por 1 USD)"
               value={customRate}
               onChange={setCustomRate}
+              onBlur={touch('rate')}
+              error={shown('rate', rateFieldError)}
               placeholder="0.00"
-              prefix={<span className="text-[#9E8575] text-sm">$</span>}
+              prefix={<span className="text-muted text-sm">$</span>}
             />
           ) : rate ? (
-            <div className="text-xs rounded-xl bg-white dark:bg-[#1E1814] border border-[#F0D7BC] dark:border-[#3A2E25] px-3 py-2 flex items-center justify-between">
+            <div className="text-xs rounded-input bg-surface border border-rule px-3 py-2 flex items-center justify-between">
               <span>
-                1 USD = <strong className="text-[#2C211B] dark:text-white">${rate.venta.toLocaleString('es-AR')}</strong> ARS
-                <span className="text-[#9E8575] ml-1.5">({rate.nombre})</span>
+                1 USD = <strong className="text-ink">${rate.venta.toLocaleString('es-AR')}</strong> ARS
+                <span className="text-muted ml-1.5">({rate.nombre})</span>
               </span>
-              {rateAge && <span className="text-[#9E8575] font-mono text-[10px]">{rateAge}</span>}
+              {rateAge && <span className="label-mono text-muted text-xs">{rateAge}</span>}
             </div>
           ) : rateError ? (
-            <p className="text-xs text-red-600 dark:text-red-400">{rateError}</p>
+            <p className="text-xs text-error">{rateError}</p>
           ) : (
-            <p className="text-xs text-[#9E8575]">Cargando cotización oficial...</p>
+            <p className="text-xs text-muted">Cargando cotización oficial…</p>
           )}
 
-          {amount && effectiveRate > 0 && (
-            <p className="text-xs text-[#6B5547] font-medium pt-1">
-              Equivalente en ARS: <strong className="text-[#2C211B] dark:text-white">{formatAmount(numericAmount * effectiveRate)}</strong>
+          {!amountError && effectiveRate > 0 && numericAmount > 0 && (
+            <p className="text-xs text-muted font-medium pt-1">
+              Equivalente en ARS: <strong className="text-ink">{formatAmount(numericAmount * effectiveRate)}</strong>
             </p>
           )}
         </div>
       )}
 
-      <div className="flex items-center justify-between pt-2">
+      <div className="flex items-center justify-between pt-1">
         <Button
           size="md"
           onClick={handleAdd}
-          isDisabled={!amount || numericAmount <= 0 || !description.trim() || (currency === 'USD' && effectiveRate <= 0)}
+          isDisabled={currency === 'USD' && rateSource !== 'custom' && !rate && !rateError}
+          startContent={<i className="pi pi-plus text-xs" aria-hidden="true"></i>}
         >
-          Guardar Ingreso
+          {compact ? 'Agregar ingreso' : 'Guardar ingreso'}
         </Button>
-        <span className="text-[11px] text-slate-400 font-mono">
-          <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px]">⌘/Ctrl+Enter</kbd>
-        </span>
+        <kbd className="hidden sm:inline-block text-xs text-muted border border-rule rounded px-1.5">Enter</kbd>
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ export const cdsPT: PrimeReactPTOptions = {
   button: {
     root: {
       className:
-        'inline-flex items-center justify-center font-semibold rounded-cds-pill transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cds-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
+        'inline-flex items-center justify-center font-semibold rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
     },
     label: { className: 'font-inherit' },
     loadingIcon: { className: 'animate-spin h-4 w-4' },
@@ -13,47 +13,47 @@ export const cdsPT: PrimeReactPTOptions = {
   inputtext: {
     root: {
       className:
-        'bg-cds-canvas dark:bg-cds-dark border border-cds-border rounded-cds-sm px-3 py-2.5 text-sm text-cds-foreground dark:text-white placeholder:text-cds-muted focus:border-cds-primary focus:shadow-[0_0_0_2px_rgba(0,82,255,0.15)] outline-none transition-colors duration-150',
+        'bg-surface border border-rule rounded-input px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-accent focus:shadow-[0_0_0_2px_rgba(0,82,255,0.15)] outline-none transition-colors duration-150',
     },
   },
 
   dialog: {
     root: {
       className:
-        'bg-cds-canvas dark:bg-cds-dark border border-cds-border rounded-cds-lg shadow-2xl max-w-md w-full mx-4',
+        'bg-surface border border-rule rounded-card shadow-2xl max-w-md w-full mx-4',
     },
     header: {
       className:
-        'flex items-center justify-between px-5 py-4 border-b border-cds-border',
+        'flex items-center justify-between px-5 py-4 border-b border-rule',
     },
     headerTitle: {
-      className: 'text-sm font-semibold text-cds-foreground dark:text-white',
+      className: 'text-sm font-semibold text-ink',
     },
     headerIcons: { className: 'flex items-center gap-1' },
     closeButton: {
       className:
-        'w-7 h-7 flex items-center justify-center rounded-cds-full hover:bg-cds-surface dark:hover:bg-cds-surface-dark text-cds-muted hover:text-cds-foreground transition-colors',
+        'w-7 h-7 flex items-center justify-center rounded-full hover:bg-paper-2 text-muted hover:text-ink transition-colors',
     },
     content: { className: 'p-5' },
     mask: {
       className:
-        'fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]',
+        'fixed inset-0 bg-ink/40 backdrop-blur-sm z-[100]',
     },
   },
 
   dropdown: {
     root: {
       className:
-        'bg-cds-canvas dark:bg-cds-dark border border-cds-border rounded-cds-sm px-3 py-2.5 text-sm focus:border-cds-primary focus:shadow-[0_0_0_2px_rgba(0,82,255,0.15)] outline-none transition-colors duration-150 cursor-pointer',
+        'bg-surface border border-rule rounded-input px-3 py-2.5 text-sm focus:border-accent focus:shadow-[0_0_0_2px_rgba(0,82,255,0.15)] outline-none transition-colors duration-150 cursor-pointer',
     },
     input: { className: 'cursor-pointer' },
     panel: {
       className:
-        'bg-cds-canvas dark:bg-cds-dark border border-cds-border rounded-cds-sm shadow-lg mt-1 z-50',
+        'bg-surface border border-rule rounded-input shadow-lg mt-1 z-50',
     },
     item: {
       className:
-        'px-3 py-2 text-sm cursor-pointer hover:bg-cds-surface dark:hover:bg-cds-surface-dark',
+        'px-3 py-2 text-sm cursor-pointer hover:bg-paper-2',
     },
     wrapper: { className: 'flex items-center gap-2' },
   },
@@ -61,45 +61,45 @@ export const cdsPT: PrimeReactPTOptions = {
   tag: {
     root: {
       className:
-        'inline-flex items-center gap-1 rounded-cds-pill px-3 py-1 font-semibold text-xs tabular-nums',
+        'inline-flex items-center gap-1 rounded-full px-3 py-1 font-semibold text-xs tabular-nums',
     },
   },
 
   inputswitch: {
     root: (options) => ({
-      className: `relative inline-flex items-center h-5 w-9 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cds-primary focus-visible:ring-offset-2 cursor-pointer ${options?.props?.checked ? 'bg-cds-primary' : 'bg-cds-border'}`,
+      className: `relative inline-flex items-center h-5 w-9 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 cursor-pointer ${options?.props?.checked ? 'bg-accent' : 'bg-rule'}`,
     }),
     input: {
       className:
         'absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10',
     },
     slider: (options) => ({
-      className: `pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${options?.props?.checked ? 'translate-x-[18px]' : 'translate-x-[2px]'}`,
+      className: `pointer-events-none inline-block h-4 w-4 rounded-full bg-surface shadow-sm transform transition-transform duration-200 ${options?.props?.checked ? 'translate-x-[18px]' : 'translate-x-[2px]'}`,
     }),
   },
 
   tooltip: {
     root: {
       className:
-        'absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-cds-dark text-cds-canvas text-xs leading-relaxed rounded-cds-md shadow-xl pointer-events-none',
+        'absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-ink text-surface text-xs leading-relaxed rounded-input shadow-xl pointer-events-none',
     },
     arrow: {
       className:
-        'absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-cds-dark',
+        'absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-ink',
     },
   },
 
   inputmask: {
     root: {
       className:
-        'bg-cds-canvas dark:bg-cds-dark border border-cds-border rounded-cds-sm px-3 py-2.5 text-sm text-cds-foreground dark:text-white placeholder:text-cds-muted focus:border-cds-primary focus:shadow-[0_0_0_2px_rgba(0,82,255,0.15)] outline-none transition-colors duration-150 w-full',
+        'bg-surface border border-rule rounded-input px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-accent focus:shadow-[0_0_0_2px_rgba(0,82,255,0.15)] outline-none transition-colors duration-150 w-full',
     },
   },
 
   inputtextarea: {
     root: {
       className:
-        'bg-cds-canvas dark:bg-cds-dark border border-cds-border rounded-cds-sm px-3 py-2.5 text-sm text-cds-foreground dark:text-white placeholder:text-cds-muted focus:border-cds-primary focus:shadow-[0_0_0_2px_rgba(0,82,255,0.15)] outline-none transition-colors duration-150 resize-none min-h-[80px]',
+        'bg-surface border border-rule rounded-input px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-accent focus:shadow-[0_0_0_2px_rgba(0,82,255,0.15)] outline-none transition-colors duration-150 resize-none min-h-[80px]',
     },
   },
 
@@ -108,23 +108,23 @@ export const cdsPT: PrimeReactPTOptions = {
   datatable: {
     root: {
       className:
-        'bg-cds-canvas dark:bg-cds-dark border border-cds-border rounded-cds-lg overflow-hidden',
+        'bg-surface border border-rule rounded-card overflow-hidden',
     },
     header: {
       className:
-        'bg-cds-surface dark:bg-cds-surface-dark border-b border-cds-border px-4 py-3',
+        'bg-paper-2 border-b border-rule px-4 py-3',
     },
     bodyRow: {
       className:
-        'border-b border-cds-border last:border-b-0 hover:bg-cds-surface/50 dark:hover:bg-cds-surface-dark/50 transition-colors',
+        'border-b border-rule last:border-b-0 hover:bg-paper-2/50 transition-colors',
     },
     emptyMessage: {
       className:
-        'text-cds-muted text-sm text-center py-8',
+        'text-muted text-sm text-center py-8',
     },
     footer: {
       className:
-        'bg-cds-surface dark:bg-cds-surface-dark border-t border-cds-border px-4 py-2',
+        'bg-paper-2 border-t border-rule px-4 py-2',
     },
     wrapper: {
       className: 'relative overflow-auto',
@@ -137,53 +137,53 @@ export const cdsPT: PrimeReactPTOptions = {
   column: {
     headerCell: {
       className:
-        'text-xs font-semibold text-cds-muted uppercase tracking-wider px-4 py-2.5 select-none',
+        'text-xs font-semibold text-muted px-4 py-2.5 select-none',
     },
     bodyCell: {
-      className: 'px-4 py-3 text-sm text-cds-foreground',
+      className: 'px-4 py-3 text-sm text-ink',
     },
     sortIcon: {
-      className: 'ml-2 text-cds-muted',
+      className: 'ml-2 text-muted',
     },
     sortBadge: {
       className:
-        'ml-2 bg-cds-primary text-white text-[10px] rounded-full w-5 h-5 flex items-center justify-center',
+        'ml-2 bg-accent text-accent-ink text-[10px] rounded-full w-5 h-5 flex items-center justify-center',
     },
   },
 
   paginator: {
     root: {
       className:
-        'flex items-center justify-between px-4 py-2.5 bg-cds-surface dark:bg-cds-surface-dark border-t border-cds-border text-sm',
+        'flex items-center justify-between px-4 py-2.5 bg-paper-2 border-t border-rule text-sm',
     },
     pages: {
       className: 'flex items-center gap-1',
     },
     pageButton: {
       className:
-        'w-8 h-8 flex items-center justify-center rounded-cds-sm text-sm text-cds-foreground hover:bg-cds-canvas dark:hover:bg-cds-dark transition-colors',
+        'w-8 h-8 flex items-center justify-center rounded-input text-sm text-ink hover:bg-surface transition-colors',
     },
     firstPageButton: {
       className:
-        'w-8 h-8 flex items-center justify-center rounded-cds-sm text-cds-muted hover:text-cds-foreground hover:bg-cds-canvas dark:hover:bg-cds-dark transition-colors',
+        'w-8 h-8 flex items-center justify-center rounded-input text-muted hover:text-ink hover:bg-surface transition-colors',
     },
     prevPageButton: {
       className:
-        'w-8 h-8 flex items-center justify-center rounded-cds-sm text-cds-muted hover:text-cds-foreground hover:bg-cds-canvas dark:hover:bg-cds-dark transition-colors',
+        'w-8 h-8 flex items-center justify-center rounded-input text-muted hover:text-ink hover:bg-surface transition-colors',
     },
     nextPageButton: {
       className:
-        'w-8 h-8 flex items-center justify-center rounded-cds-sm text-cds-muted hover:text-cds-foreground hover:bg-cds-canvas dark:hover:bg-cds-dark transition-colors',
+        'w-8 h-8 flex items-center justify-center rounded-input text-muted hover:text-ink hover:bg-surface transition-colors',
     },
     lastPageButton: {
       className:
-        'w-8 h-8 flex items-center justify-center rounded-cds-sm text-cds-muted hover:text-cds-foreground hover:bg-cds-canvas dark:hover:bg-cds-dark transition-colors',
+        'w-8 h-8 flex items-center justify-center rounded-input text-muted hover:text-ink hover:bg-surface transition-colors',
     },
     left: {
       className: 'flex items-center gap-2',
     },
     end: {
-      className: 'flex items-center gap-2 text-cds-muted',
+      className: 'flex items-center gap-2 text-muted',
     },
   },
 };
